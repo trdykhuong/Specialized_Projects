@@ -13,7 +13,18 @@ FAKE_KEYWORDS = [
     "không cần kinh nghiệm",
     "kiếm tiền nhanh",
     "tuyển gấp",
-    "làm tại nhà"
+    "làm tại nhà",
+    "tuyển cộng tác viên cho Shopee",
+    "tuyển ngay",
+    "lương cao bất ngờ",
+    "làm thêm tại nhà",
+    "tuyển dụng online",
+    "tuyển dụng khẩn",
+    "làm việc tự do",
+    "công việc online",
+    "tuyển dụng 24/7",
+    "tuyển cộng tác viên cho Lazada"
+    
 ]
 
 
