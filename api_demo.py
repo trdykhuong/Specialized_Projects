@@ -12,7 +12,7 @@ import sys
 import os
 
 # Import feature extractor
-from advanced_features import AdvancedFeatureExtractor
+from BE.advanced_features import AdvancedFeatureExtractor
 
 app = Flask(__name__)
 
