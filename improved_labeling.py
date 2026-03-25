@@ -86,6 +86,50 @@ class ImprovedLabeling:
             score += 0.5
             reasons.append("Quá nhiều dấu !")
         
+        # Rule 11: Job Type là Part-time + lương cao
+        if row.get('is_part_time', 0) == 1 and row.get('salary_avg', 0) > 15000000:
+            score += 1.5
+            reasons.append("Part-time nhưng lương cao")
+        
+        # Rule 12: Job Type là Part-time + yêu cầu quản lý
+        if row.get('is_part_time', 0) == 1 and row.get('is_management_level', 0) == 1:
+            score += 1.5
+            reasons.append("Part-time cho vị trí quản lý")
+        
+        # Rule 13: Career level quản lý + không cần kinh nghiệm
+        if row.get('is_management_level', 0) == 1 and row.get('no_experience_required', 0) == 1:
+            score += 2
+            reasons.append("Quản lý nhưng không cần kinh nghiệm")
+        
+        # Rule 14: Career level quản lý + kinh nghiệm < 3 năm
+        if row.get('is_management_level', 0) == 1 and 0 < row.get('experience_years', 0) < 3:
+            score += 1.5
+            reasons.append("Quản lý nhưng kinh nghiệm quá ít")
+        
+        # Rule 15: Entry level + lương quá cao (>20M)
+        if row.get('is_entry_level', 0) == 1 and row.get('salary_avg', 0) > 20000000:
+            score += 1.5
+            reasons.append("Entry level nhưng lương quá cao")
+        
+        # Rule 16: Entry level + yêu cầu kinh nghiệm cao (>5 năm)
+        if row.get('is_entry_level', 0) == 1 and row.get('experience_years', 0) >= 5:
+            score += 1
+            reasons.append("Entry level nhưng yêu cầu kinh nghiệm cao")
+        
+        # Rule 17: Career level thiếu (blank) hoặc không rõ
+        if row.get('is_management_level', 0) == 0 and row.get('is_entry_level', 0) == 0:
+            career_text = str(row.get('career_level_text', '')).strip()
+            if not career_text or len(career_text) < 2:
+                score += 0.5
+                reasons.append("Không có thông tin Career Level")
+        
+        # Rule 18: Job Type thiếu hoặc không rõ
+        if row.get('is_part_time', 0) == 0 and row.get('is_full_time', 0) == 0 and row.get('is_freelance', 0) == 0:
+            job_type_text = str(row.get('job_type_text', '')).strip()
+            if not job_type_text or len(job_type_text) < 2:
+                score += 0.5
+                reasons.append("Không có thông tin Job Type")
+        
         return min(score, 10), reasons  # Cap ở 10
     
     def anomaly_detection_label(self, df):

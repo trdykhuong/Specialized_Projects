@@ -133,7 +133,11 @@ class EnsembleJobClassifier:
             # Requirement features
             'no_experience_required', 'experience_years',
             'num_candidates', 'mass_recruitment',
-            'requirements_length', 'requirements_missing'
+            'requirements_length', 'requirements_missing',
+            
+            # Career level & Job type features
+            'is_management_level', 'is_entry_level',
+            'is_part_time', 'is_full_time', 'is_freelance'
         ]
         
         # Lọc các features có trong data
