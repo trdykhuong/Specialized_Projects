@@ -94,7 +94,6 @@ class EnsembleJobClassifier:
         
         # Load data với labels đã cải thiện
         df = pd.read_csv("data/JOB_DATA_IMPROVED_LABELS.csv")
-        
         # Lọc theo confidence nếu cần
         if self.use_high_confidence:
             original_size = len(df)
