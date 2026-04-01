@@ -8,8 +8,8 @@ import pandas as pd
 import sys
 sys.path.insert(0, '.')
 
-from advanced_features import AdvancedFeatureExtractor
-from improved_labeling import ImprovedLabeling
+from ml_pipeline.src.advanced_features import AdvancedFeatureExtractor
+from ml_pipeline.src.improved_labeling import ImprovedLabeling
 
 def demo_feature_extraction():
     """Demo feature extraction với các features mới"""
