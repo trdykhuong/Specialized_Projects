@@ -254,7 +254,7 @@ class ImprovedLabeling:
 # MAIN
 if __name__ == "__main__":
     # Load dữ liệu có features nâng cao
-    df = pd.read_csv("data/JOB_DATA_ENHANCED_FEATURES.csv")
+    df = pd.read_csv("../data/JOB_DATA_ENHANCED_FEATURES.csv")
     
     print(f"Đã load {len(df)} mẫu dữ liệu")
     
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     
     # Lưu toàn bộ dữ liệu
     df_labeled.to_csv(
-        "data/JOB_DATA_IMPROVED_LABELS.csv",
+        "../data/JOB_DATA_IMPROVED_LABELS.csv",
         index=False,
         encoding="utf-8-sig"
     )
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     # Lưu high-confidence samples riêng (dùng để train)
     df_high_conf = labeler.get_high_confidence_samples(df_labeled, min_confidence=0.7)
     df_high_conf.to_csv(
-        "data/JOB_DATA_HIGH_CONFIDENCE.csv",
+        "../data/JOB_DATA_HIGH_CONFIDENCE.csv",
         index=False,
         encoding="utf-8-sig"
     )

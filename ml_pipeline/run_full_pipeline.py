@@ -60,17 +60,17 @@ def main():
     print_step(1, 6, "Kiểm tra prerequisites")
     
     print("Kiểm tra input files:")
-    if not check_file_exists("data/JOB_DATA_FINAL.csv"):
+    if not check_file_exists("../data/JOB_DATA_FINAL.csv"):
         print("\n⚠ Thiếu file data/JOB_DATA_FINAL.csv!")
         print("Vui lòng chuẩn bị file dữ liệu gốc.")
         return
     
     print("\nKiểm tra scripts:")
     scripts = [
-        "1_preprocessing.py",
-        "advanced_features.py", 
-        "improved_labeling.py",
-        "ensemble_training.py"
+        "src/1_preprocessing.py",
+        "src/advanced_features.py", 
+        "src/improved_labeling.py",
+        "src/ensemble_training.py"
     ]
     
     for script in scripts:
@@ -85,13 +85,13 @@ def main():
     # ========================================================================
     print_step(2, 6, "Preprocessing - Làm sạch và tách từ")
     
-    if not run_script("1_preprocessing.py", "Preprocessing"):
+    if not run_script("src/1_preprocessing.py", "Preprocessing"):
         print("\n✗ Pipeline dừng do lỗi ở bước preprocessing")
         return
     
     # Kiểm tra output
     print("\nKiểm tra output:")
-    if not check_file_exists("data/JOB_DATA_LABELLED.csv"):
+    if not check_file_exists("../data/JOB_DATA_LABELLED.csv"):
         print("✗ Không tìm thấy output file!")
         return
     
@@ -100,13 +100,13 @@ def main():
     # ========================================================================
     print_step(3, 6, "Feature Engineering - Trích xuất 30+ features")
     
-    if not run_script("advanced_features.py", "Feature extraction"):
+    if not run_script("src/advanced_features.py", "Feature extraction"):
         print("\n✗ Pipeline dừng do lỗi ở bước feature extraction")
         return
     
     # Kiểm tra output
     print("\nKiểm tra output:")
-    if not check_file_exists("data/JOB_DATA_ENHANCED_FEATURES.csv"):
+    if not check_file_exists("../data/JOB_DATA_ENHANCED_FEATURES.csv"):
         print("✗ Không tìm thấy output file!")
         return
     
@@ -115,15 +115,15 @@ def main():
     # ========================================================================
     print_step(4, 6, "Labeling - Multi-method ensemble với confidence scoring")
     
-    if not run_script("improved_labeling.py", "Labeling"):
+    if not run_script("src/improved_labeling.py", "Labeling"):
         print("\n✗ Pipeline dừng do lỗi ở bước labeling")
         return
     
     # Kiểm tra outputs
     print("\nKiểm tra outputs:")
     outputs = [
-        "data/JOB_DATA_IMPROVED_LABELS.csv",
-        "data/JOB_DATA_HIGH_CONFIDENCE.csv"
+        "../data/JOB_DATA_IMPROVED_LABELS.csv",
+        "../data/JOB_DATA_HIGH_CONFIDENCE.csv"
     ]
     
     for output in outputs:
@@ -136,17 +136,17 @@ def main():
     # ========================================================================
     print_step(5, 6, "Training - Ensemble models với cross-validation")
     
-    if not run_script("ensemble_training.py", "Model training"):
+    if not run_script("src/ensemble_training.py", "Model training"):
         print("\n✗ Pipeline dừng do lỗi ở bước training")
         return
     
     # Kiểm tra outputs
     print("\nKiểm tra outputs:")
     model_files = [
-        "best_model.pkl",
-        "voting_ensemble.pkl",
-        "tfidf_vectorizer.pkl",
-        "scaler.pkl",
+        "../models/best_model.pkl",
+        "../models/voting_ensemble.pkl",
+        "../models/tfidf_vectorizer.pkl",
+        "../models/scaler.pkl",
         "model_comparison.png"
     ]
     
@@ -170,10 +170,10 @@ def main():
     
     print("\nData files được tạo:")
     data_files = [
-        "data/JOB_DATA_LABELLED.csv",
-        "data/JOB_DATA_ENHANCED_FEATURES.csv",
-        "data/JOB_DATA_IMPROVED_LABELS.csv",
-        "data/JOB_DATA_HIGH_CONFIDENCE.csv"
+        "../data/JOB_DATA_LABELLED.csv",
+        "../data/JOB_DATA_ENHANCED_FEATURES.csv",
+        "../data/JOB_DATA_IMPROVED_LABELS.csv",
+        "../data/JOB_DATA_HIGH_CONFIDENCE.csv"
     ]
     
     for df in data_files:

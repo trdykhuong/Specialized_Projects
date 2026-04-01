@@ -52,7 +52,7 @@ def preprocess_pipeline(df):
 if __name__ == "__main__":
 
     # Load dữ liệu gốc
-    df = pd.read_csv("data/JOB_DATA_FINAL.csv")
+    df = pd.read_csv("../data/JOB_DATA_FINAL.csv")
 
     # Tiền xử lý
     df_processed = preprocess_pipeline(df)
@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     # Lưu ra file dùng cho AI
     df_final.to_csv(
-        "data/JOB_DATA_LABELLED.csv",
+        "../data/JOB_DATA_LABELLED.csv",
         index=False,
         encoding="utf-8-sig"
     )
