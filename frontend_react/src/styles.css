@@ -160,7 +160,8 @@ textarea {
 
 .panel,
 .job-card,
-.recommend-card {
+.recommend-card,
+.batch-result-card {
   border: 1px solid var(--line);
   border-radius: 28px;
   background: var(--panel);
@@ -168,6 +169,12 @@ textarea {
 
 .panel {
   padding: 22px;
+}
+
+.panel-stack,
+.batch-result-list {
+  display: grid;
+  gap: 20px;
 }
 
 .stat-card {
@@ -226,6 +233,27 @@ textarea {
   color: var(--text);
 }
 
+.input-error {
+  border-color: #c94735;
+  box-shadow: 0 0 0 3px rgba(201, 71, 53, 0.12);
+}
+
+.error-text {
+  color: #b93d2d;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.helper-text,
+.count-text {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.count-text {
+  font-weight: 600;
+}
+
 .full {
   grid-column: 1 / -1;
 }
@@ -255,7 +283,8 @@ textarea {
 }
 
 .job-card,
-.recommend-card {
+.recommend-card,
+.batch-result-card {
   padding: 18px;
   display: grid;
   gap: 12px;

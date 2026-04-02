@@ -24,3 +24,21 @@ export const sampleProfile = {
   jobTypes: ["Toàn thời gian"],
   preferredRisk: ["LOW", "MEDIUM"],
 };
+
+export const sampleBatchText = `Vị trí: Nhân viên kinh doanh
+Tên công ty: Công ty TNHH ABC
+Mức lương: 8.000.000 - 15.000.000
+Email: hr@abc.vn
+Mô tả: Tìm kiếm khách hàng mới, chăm sóc khách hàng và phối hợp đội sale.
+
+sale admin website dhc việt nam trực_thuộc công_ty cp belie
+Công ty Cổ phần Belie
+5,000,000 - 10,000,000
+Toàn quốc
+Email: tuyendung@belie.vn
+
+Vị trí: Cộng tác viên online
+Công ty: Việc nhẹ lương cao 4.0
+Lương: 30 triệu
+Email: tuyendungnhanh@gmail.com
+Mô tả: Không cần kinh nghiệm, làm tại nhà, tuyển gấp.`;

@@ -1,11 +1,14 @@
 {
   "companies": [
-    "Công ty TNHH Việc Nhẹ Lương Cao"
+    "Công ty A",
+    "Công ty B"
   ],
   "emails": [
-    "tuyendungnhanh@gmail.com"
+    "test@example.com",
+    "hr@abc.vn"
   ],
   "phones": [
-    "0900000000"
+    "0909123456",
+    "84909777888"
   ]
 }

@@ -62,8 +62,7 @@ def create_app():
     @app.post("/api/jobs/batch-analyze")
     def batch_analyze():
         payload = request.get_json(silent=True) or {}
-        jobs = payload.get("jobs", [])
-        return jsonify(predictor.batch_analyze(jobs))
+        return jsonify(predictor.batch_analyze(payload))
 
     @app.post("/api/personalization/recommend")
     def personalized_recommendation():
@@ -296,8 +295,17 @@ class RecruitmentTrustService:
             "personalization": recommendation,
         }
 
-    def batch_analyze(self, jobs):
-        results = [self.analyze_job(job) for job in jobs[:50]]
+    def batch_analyze(self, payload):
+        jobs = payload.get("jobs", []) if isinstance(payload, dict) else []
+        raw_text = payload.get("rawText", "") if isinstance(payload, dict) else ""
+
+        parsing_notes = []
+        if raw_text:
+            parsed_jobs, parsing_notes = self._parse_bulk_jobs(raw_text)
+            jobs = jobs + parsed_jobs
+
+        jobs = jobs[:50]
+        results = [self.analyze_job(job) for job in jobs]
         risk_levels = {"LOW": 0, "MEDIUM": 0, "HIGH": 0}
         for item in results:
             risk_levels[item["result"]["riskLevel"]] += 1
@@ -309,6 +317,7 @@ class RecruitmentTrustService:
             "items": results,
             "summary": {
                 "total": len(results),
+                "parsedFromText": len(jobs),
                 "riskLevels": risk_levels,
                 "riskLevelsVi": {
                     "Thấp": risk_levels["LOW"],
@@ -318,6 +327,7 @@ class RecruitmentTrustService:
                 "averageTrustScore": average_trust,
                 "message": "Đã phân tích danh sách tin tuyển dụng.",
             },
+            "parsingNotes": parsing_notes,
         }
 
     def recommend_jobs(self, payload):
@@ -353,9 +363,9 @@ class RecruitmentTrustService:
 
     def update_blacklist(self, payload):
         self.blacklist = {
-            "companies": payload.get("companies", []),
-            "emails": payload.get("emails", []),
-            "phones": payload.get("phones", []),
+            "companies": self._normalize_blacklist_items(payload.get("companies", [])),
+            "emails": self._normalize_blacklist_items(payload.get("emails", []), item_type="email"),
+            "phones": self._normalize_blacklist_items(payload.get("phones", []), item_type="phone"),
         }
         BLACKLIST_PATH.write_text(
             json.dumps(self.blacklist, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -557,6 +567,142 @@ class RecruitmentTrustService:
             "fitScore": round(min(100, len(overlap) * 20 + (20 if job["jobType"] in profile.get("jobTypes", []) else 0)), 2),
             "matchedKeywords": overlap[:6],
         }
+
+    def _normalize_blacklist_items(self, items, item_type="text"):
+        normalized = []
+        seen = set()
+
+        for raw in items:
+            value = str(raw).strip()
+            if not value:
+                continue
+
+            if item_type == "email":
+                key = value.lower()
+                value = key
+            elif item_type == "phone":
+                key = re.sub(r"\D", "", value)
+                value = key
+            else:
+                key = re.sub(r"\s+", " ", value.lower())
+                value = re.sub(r"\s+", " ", value)
+
+            if not key or key in seen:
+                continue
+
+            seen.add(key)
+            normalized.append(value)
+
+        return normalized
+
+    def _parse_bulk_jobs(self, raw_text):
+        blocks = [block.strip() for block in re.split(r"\n\s*\n+", str(raw_text)) if block.strip()]
+        jobs = []
+        notes = []
+
+        for index, block in enumerate(blocks, start=1):
+            parsed = self._parse_job_block(block)
+            if parsed:
+                jobs.append(parsed)
+            else:
+                notes.append(f"Khối dữ liệu #{index} chưa đủ rõ để tách tự động.")
+
+        return jobs, notes
+
+    def _parse_job_block(self, block):
+        lines = [line.strip(" -\t") for line in block.splitlines() if line.strip()]
+        job = {
+            "title": "",
+            "companyName": "",
+            "description": "",
+            "requirements": "",
+            "benefits": "",
+            "salary": "",
+            "address": "",
+            "email": "",
+            "phone": "",
+            "companySize": "",
+            "experience": "",
+            "candidates": 0,
+            "careerLevel": "",
+            "jobType": "",
+        }
+
+        key_map = {
+            "vi tri": "title",
+            "vị trí": "title",
+            "chuc danh": "title",
+            "chức danh": "title",
+            "ten cong ty": "companyName",
+            "tên công ty": "companyName",
+            "cong ty": "companyName",
+            "công ty": "companyName",
+            "mo ta": "description",
+            "mô tả": "description",
+            "yeu cau": "requirements",
+            "yêu cầu": "requirements",
+            "phuc loi": "benefits",
+            "phúc lợi": "benefits",
+            "muc luong": "salary",
+            "mức lương": "salary",
+            "luong": "salary",
+            "lương": "salary",
+            "dia chi": "address",
+            "địa chỉ": "address",
+            "email": "email",
+            "so dien thoai": "phone",
+            "số điện thoại": "phone",
+            "dien thoai": "phone",
+            "điện thoại": "phone",
+        }
+
+        for line in lines:
+            if ":" in line:
+                key, value = line.split(":", 1)
+                normalized_key = re.sub(r"\s+", " ", key.lower()).strip()
+                target = key_map.get(normalized_key)
+                if target:
+                    job[target] = value.strip()
+                    continue
+
+            lower_line = line.lower()
+            if not job["email"]:
+                email_match = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", line)
+                if email_match:
+                    job["email"] = email_match.group(0)
+            if not job["phone"]:
+                phone_match = re.search(r"(\+?\d[\d\s().-]{7,}\d)", line)
+                if phone_match:
+                    job["phone"] = phone_match.group(1)
+            if not job["salary"] and re.search(r"\d", line) and any(token in lower_line for token in ["lương", "luong", "triệu", "trieu", "vnđ", "vnd"]):
+                job["salary"] = line
+
+        if not job["title"] and lines:
+            segments = re.split(r"\s*[|;,-]\s*", lines[0])
+            if segments:
+                job["title"] = segments[0].strip()
+                if len(segments) > 1 and not job["companyName"]:
+                    job["companyName"] = segments[1].strip()
+
+        if not job["companyName"]:
+            for line in lines[1:3]:
+                if "công ty" in line.lower() or "cong ty" in line.lower():
+                    job["companyName"] = line.replace("Tên công ty:", "").replace("Công ty:", "").strip()
+                    break
+
+        if not job["description"]:
+            remaining = []
+            for line in lines[1:]:
+                lowered = line.lower()
+                if any(token in lowered for token in ["công ty", "cong ty", "lương", "luong", "email", "địa chỉ", "dia chi", "số điện thoại", "so dien thoai"]):
+                    continue
+                remaining.append(line)
+            job["description"] = " ".join(remaining[:4]).strip()
+
+        if not job["title"] and not job["description"]:
+            return None
+
+        return job
 
 
 app = create_app()

@@ -24,10 +24,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  batchAnalyze: (jobs) =>
+  batchAnalyze: (payload) =>
     request("/jobs/batch-analyze", {
       method: "POST",
-      body: JSON.stringify({ jobs }),
+      body: JSON.stringify(payload),
     }),
   recommend: (payload) =>
     request("/personalization/recommend", {

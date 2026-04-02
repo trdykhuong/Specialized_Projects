@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import { sampleJob, sampleProfile } from "./mockData";
+import { sampleBatchText, sampleJob, sampleProfile } from "./mockData";
 
 const menu = [
   { id: "overview", label: "Tổng quan" },
   { id: "jobs", label: "Quản lý tin" },
   { id: "analyze", label: "Đánh giá tin cậy" },
+  { id: "batch", label: "Đánh giá hàng loạt" },
   { id: "recommend", label: "Cá nhân hóa" },
   { id: "blacklist", label: "Blacklist" },
 ];
@@ -22,9 +23,20 @@ export default function App() {
   const [jobRisk, setJobRisk] = useState("ALL");
   const [analysisInput, setAnalysisInput] = useState(sampleJob);
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisErrors, setAnalysisErrors] = useState({});
+  const [batchInput, setBatchInput] = useState(sampleBatchText);
+  const [batchErrors, setBatchErrors] = useState({});
+  const [batchResult, setBatchResult] = useState(null);
   const [profileInput, setProfileInput] = useState(sampleProfile);
+  const [profileErrors, setProfileErrors] = useState({});
   const [recommendations, setRecommendations] = useState([]);
   const [blacklist, setBlacklist] = useState({ companies: [], emails: [], phones: [] });
+  const [blacklistInput, setBlacklistInput] = useState({
+    companiesText: "",
+    emailsText: "",
+    phonesText: "",
+  });
+  const [blacklistErrors, setBlacklistErrors] = useState({});
   const [status, setStatus] = useState("Đang tải dữ liệu...");
 
   useEffect(() => {
@@ -48,6 +60,7 @@ export default function App() {
       setJobPage(jobsData.page ?? 1);
       setJobTotalPages(jobsData.totalPages ?? 0);
       setBlacklist(blacklistData);
+      setBlacklistInput(buildBlacklistInput(blacklistData));
       setStatus("Hệ thống sẵn sàng.");
     } catch (error) {
       setStatus("Không kết nối được backend Flask. Vui lòng chạy server ở cổng 5000.");
@@ -82,6 +95,13 @@ export default function App() {
 
   async function handleAnalyze(event) {
     event.preventDefault();
+    const errors = validateAnalysisInput(analysisInput);
+    setAnalysisErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setStatus("Vui lòng kiểm tra lại thông tin trong biểu mẫu phân tích.");
+      return;
+    }
+
     const result = await api.analyzeJob({
       ...analysisInput,
       candidateProfile: buildProfilePayload(profileInput),
@@ -91,13 +111,43 @@ export default function App() {
   }
 
   async function handleRecommend() {
+    const errors = validateProfileInput(profileInput);
+    setProfileErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setStatus("Vui lòng kiểm tra lại hồ sơ cá nhân hóa.");
+      return;
+    }
+
     const result = await api.recommend(buildProfilePayload(profileInput));
     setRecommendations(result.items || []);
   }
 
+  async function handleBatchAnalyze() {
+    const errors = validateBatchInput(batchInput);
+    setBatchErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setStatus("Vui lòng kiểm tra lại dữ liệu batch trước khi phân tích.");
+      return;
+    }
+
+    const result = await api.batchAnalyze({ rawText: batchInput });
+    setBatchResult(result);
+    setStatus(`Đã phân tích ${result.summary?.total || 0} tin tuyển dụng từ dữ liệu dán vào.`);
+  }
+
   async function handleBlacklistSave() {
-    const updated = await api.updateBlacklist(blacklist);
+    const parsedBlacklist = buildBlacklistPayload(blacklistInput);
+    const errors = validateBlacklistInput(parsedBlacklist);
+    setBlacklistErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setStatus("Blacklist có dữ liệu chưa hợp lệ, vui lòng kiểm tra lại.");
+      return;
+    }
+
+    const updated = await api.updateBlacklist(parsedBlacklist);
     setBlacklist(updated);
+    setBlacklistInput(buildBlacklistInput(updated));
+    setStatus("Đã lưu blacklist thành công.");
   }
 
   return (
@@ -166,20 +216,41 @@ export default function App() {
           <AnalyzePanel
             input={analysisInput}
             setInput={setAnalysisInput}
+            errors={analysisErrors}
+            setErrors={setAnalysisErrors}
             result={analysisResult}
             onSubmit={handleAnalyze}
+          />
+        )}
+        {activeTab === "batch" && (
+          <BatchAnalyzePanel
+            batchInput={batchInput}
+            setBatchInput={setBatchInput}
+            batchErrors={batchErrors}
+            setBatchErrors={setBatchErrors}
+            batchResult={batchResult}
+            onBatchAnalyze={handleBatchAnalyze}
           />
         )}
         {activeTab === "recommend" && (
           <RecommendPanel
             profile={profileInput}
             setProfile={setProfileInput}
+            errors={profileErrors}
+            setErrors={setProfileErrors}
             items={recommendations}
             onRecommend={handleRecommend}
           />
         )}
         {activeTab === "blacklist" && (
-          <BlacklistPanel blacklist={blacklist} setBlacklist={setBlacklist} onSave={handleBlacklistSave} />
+          <BlacklistPanel
+            blacklist={blacklist}
+            input={blacklistInput}
+            setInput={setBlacklistInput}
+            errors={blacklistErrors}
+            setErrors={setBlacklistErrors}
+            onSave={handleBlacklistSave}
+          />
         )}
       </main>
     </div>
@@ -199,6 +270,71 @@ function buildProfilePayload(profile) {
     ...profile,
     keywords,
   };
+}
+
+function buildBlacklistInput(blacklist) {
+  return {
+    companiesText: (blacklist.companies || []).join("\n"),
+    emailsText: (blacklist.emails || []).join("\n"),
+    phonesText: (blacklist.phones || []).join("\n"),
+  };
+}
+
+function buildBlacklistPayload(input) {
+  return {
+    companies: splitLines(input.companiesText),
+    emails: splitLines(input.emailsText),
+    phones: splitLines(input.phonesText),
+  };
+}
+
+function splitLines(value) {
+  return String(value || "")
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function validateAnalysisInput(input) {
+  const errors = {};
+  if (!input.title.trim()) errors.title = "Vui lòng nhập vị trí tuyển dụng.";
+  if (!input.companyName.trim()) errors.companyName = "Vui lòng nhập tên công ty.";
+  if (!input.description.trim()) errors.description = "Vui lòng nhập mô tả công việc.";
+  if (input.description.trim().length < 30) errors.description = "Mô tả cần ít nhất 30 ký tự.";
+  if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) errors.email = "Email chưa đúng định dạng.";
+  if (input.phone && !/^[0-9+\s().-]{8,20}$/.test(input.phone)) errors.phone = "Số điện thoại chưa đúng định dạng.";
+  if (input.salary && !/[0-9]/.test(input.salary)) errors.salary = "Mức lương nên có số hoặc khoảng lương cụ thể.";
+  return errors;
+}
+
+function validateProfileInput(profile) {
+  const errors = {};
+  if (!String(profile.fullName || "").trim()) errors.fullName = "Vui lòng nhập họ tên.";
+  if (!String(profile.keywordsText || "").trim()) errors.keywordsText = "Vui lòng nhập ít nhất một từ khóa nghề nghiệp.";
+  return errors;
+}
+
+function validateBatchInput(rawText) {
+  const errors = {};
+  if (!String(rawText || "").trim()) {
+    errors.rawText = "Vui lòng dán dữ liệu nhiều tin tuyển dụng.";
+    return errors;
+  }
+
+  const blocks = String(rawText).split(/\n\s*\n+/).filter((item) => item.trim());
+  if (blocks.length > 50) {
+    errors.rawText = "Chỉ hỗ trợ tối đa 50 tin trong một lần phân tích.";
+  }
+  return errors;
+}
+
+function validateBlacklistInput(blacklist) {
+  const errors = {};
+  const invalidEmails = blacklist.emails.filter((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+  const invalidPhones = blacklist.phones.filter((phone) => !/^[0-9+\s().-]{8,20}$/.test(phone));
+  if (invalidEmails.length > 0) errors.emailsText = "Có email chưa đúng định dạng trong blacklist.";
+  if (invalidPhones.length > 0) errors.phonesText = "Có số điện thoại chưa đúng định dạng trong blacklist.";
+  return errors;
 }
 
 function formatDisplayTitle(title) {
@@ -339,7 +475,14 @@ function JobsPanel({
   );
 }
 
-function AnalyzePanel({ input, setInput, result, onSubmit }) {
+function AnalyzePanel({
+  input,
+  setInput,
+  errors,
+  setErrors,
+  result,
+  onSubmit,
+}) {
   const fields = [
     ["title", "Tiêu đề tin"],
     ["companyName", "Tên công ty"],
@@ -351,6 +494,13 @@ function AnalyzePanel({ input, setInput, result, onSubmit }) {
     ["experience", "Kinh nghiệm"],
   ];
 
+  function updateField(key, value) {
+    setInput({ ...input, [key]: value });
+    if (errors[key]) {
+      setErrors({ ...errors, [key]: "" });
+    }
+  }
+
   return (
     <section className="panel-grid double">
       <form className="panel form-panel" onSubmit={onSubmit}>
@@ -359,20 +509,31 @@ function AnalyzePanel({ input, setInput, result, onSubmit }) {
           {fields.map(([key, label]) => (
             <label key={key}>
               <span>{label}</span>
-              <input value={input[key]} onChange={(e) => setInput({ ...input, [key]: e.target.value })} />
+              <input
+                value={input[key]}
+                onChange={(e) => updateField(key, e.target.value)}
+                className={errors[key] ? "input-error" : ""}
+              />
+              {errors[key] && <small className="error-text">{errors[key]}</small>}
             </label>
           ))}
           <label className="full">
             <span>Mô tả công việc</span>
-            <textarea rows="5" value={input.description} onChange={(e) => setInput({ ...input, description: e.target.value })} />
+            <textarea
+              rows="5"
+              value={input.description}
+              onChange={(e) => updateField("description", e.target.value)}
+              className={errors.description ? "input-error" : ""}
+            />
+            {errors.description && <small className="error-text">{errors.description}</small>}
           </label>
           <label className="full">
             <span>Yêu cầu</span>
-            <textarea rows="4" value={input.requirements} onChange={(e) => setInput({ ...input, requirements: e.target.value })} />
+            <textarea rows="4" value={input.requirements} onChange={(e) => updateField("requirements", e.target.value)} />
           </label>
           <label className="full">
             <span>Phúc lợi</span>
-            <textarea rows="3" value={input.benefits} onChange={(e) => setInput({ ...input, benefits: e.target.value })} />
+            <textarea rows="3" value={input.benefits} onChange={(e) => updateField("benefits", e.target.value)} />
           </label>
         </div>
         <button className="primary-btn" type="submit">Chấm điểm tin tuyển dụng</button>
@@ -417,7 +578,98 @@ function AnalyzePanel({ input, setInput, result, onSubmit }) {
   );
 }
 
-function RecommendPanel({ profile, setProfile, items, onRecommend }) {
+function BatchAnalyzePanel({
+  batchInput,
+  setBatchInput,
+  batchErrors,
+  setBatchErrors,
+  batchResult,
+  onBatchAnalyze,
+}) {
+  return (
+    <section className="panel-grid double">
+      <div className="panel form-panel">
+        <h3>Đánh giá nhiều tin cùng lúc</h3>
+        <p className="muted">
+          Bạn có thể dán dữ liệu lộn xộn. Hệ thống sẽ cố gắng tách tự động theo từng khối, mỗi tin cách nhau một dòng trống.
+        </p>
+        <label className="full">
+          <span>Dữ liệu nhiều tin tuyển dụng</span>
+          <textarea
+            rows="18"
+            value={batchInput}
+            onChange={(e) => {
+              setBatchInput(e.target.value);
+              if (batchErrors.rawText) {
+                setBatchErrors({});
+              }
+            }}
+            className={batchErrors.rawText ? "input-error" : ""}
+          />
+          <small className="helper-text">
+            Mẫu gợi ý: `Vị trí: ...`, `Tên công ty: ...`, `Mức lương: ...`, `Email: ...`, `Mô tả: ...`
+          </small>
+          {batchErrors.rawText && <small className="error-text">{batchErrors.rawText}</small>}
+        </label>
+        <button className="primary-btn" type="button" onClick={onBatchAnalyze}>Phân tích hàng loạt</button>
+      </div>
+
+      <div className="panel result-panel">
+        <h3>Kết quả phân tích hàng loạt</h3>
+        {!batchResult && <p className="muted">Dán nhiều tin tuyển dụng để xem thống kê và danh sách kết quả.</p>}
+        {batchResult && (
+          <>
+            <div className="stats-grid compact">
+              <StatCard title="Số tin đã phân tích" value={batchResult.summary.total} accent="blue" />
+              <StatCard title="Trust Score TB" value={batchResult.summary.averageTrustScore} accent="green" />
+              <StatCard title="Rủi ro thấp" value={batchResult.summary.riskLevelsVi?.["Thấp"] || 0} accent="amber" />
+              <StatCard title="Rủi ro cao" value={batchResult.summary.riskLevelsVi?.["Cao"] || 0} accent="red" />
+            </div>
+            <div className="detail-block">
+              <h4>Thống kê tổng hợp</h4>
+              <p>
+                Phân bố rủi ro: Thấp {batchResult.summary.riskLevelsVi?.["Thấp"] || 0} • Trung bình {batchResult.summary.riskLevelsVi?.["Trung bình"] || 0} • Cao {batchResult.summary.riskLevelsVi?.["Cao"] || 0}
+              </p>
+              <p>Số khối dữ liệu đã tách: {batchResult.summary.parsedFromText || 0}</p>
+            </div>
+            {batchResult.parsingNotes?.length > 0 && (
+              <div className="detail-block">
+                <h4>Ghi chú tách dữ liệu</h4>
+                <ul>
+                  {batchResult.parsingNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="batch-result-list">
+              {batchResult.items?.map((item, index) => (
+                <div key={`${item.job.title}-${index}`} className="batch-result-card">
+                  <div className="job-card-top">
+                    <span className={`pill ${item.result.riskLevel.toLowerCase()}`}>{item.result.riskLabel || item.result.riskLevel}</span>
+                    <strong>{item.result.trustScore}% tin cậy</strong>
+                  </div>
+                  <p><strong>Vị trí:</strong> {item.job.title || "Chưa rõ"}</p>
+                  <p><strong>Công ty:</strong> {item.job.companyName || "Chưa rõ"}</p>
+                  <p><strong>Kết luận:</strong> {item.result.decision}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function RecommendPanel({ profile, setProfile, errors, setErrors, items, onRecommend }) {
+  function updateProfileField(key, value) {
+    setProfile({ ...profile, [key]: value });
+    if (errors[key]) {
+      setErrors({ ...errors, [key]: "" });
+    }
+  }
+
   return (
     <section className="panel-grid double">
       <div className="panel">
@@ -425,15 +677,22 @@ function RecommendPanel({ profile, setProfile, items, onRecommend }) {
         <p className="muted">Kết hợp độ tin cậy và sở thích ứng viên để gợi ý tin phù hợp.</p>
         <label>
           <span>Họ tên</span>
-          <input value={profile.fullName} onChange={(e) => setProfile({ ...profile, fullName: e.target.value })} />
+          <input
+            value={profile.fullName}
+            onChange={(e) => updateProfileField("fullName", e.target.value)}
+            className={errors.fullName ? "input-error" : ""}
+          />
+          {errors.fullName && <small className="error-text">{errors.fullName}</small>}
         </label>
         <label>
           <span>Từ khóa nghề nghiệp</span>
           <textarea
             rows="4"
             value={profile.keywordsText ?? ""}
-            onChange={(e) => setProfile({ ...profile, keywordsText: e.target.value })}
+            onChange={(e) => updateProfileField("keywordsText", e.target.value)}
+            className={errors.keywordsText ? "input-error" : ""}
           />
+          {errors.keywordsText && <small className="error-text">{errors.keywordsText}</small>}
         </label>
         <button className="primary-btn" onClick={onRecommend}>Lấy gợi ý cá nhân hóa</button>
       </div>
@@ -461,7 +720,14 @@ function RecommendPanel({ profile, setProfile, items, onRecommend }) {
   );
 }
 
-function BlacklistPanel({ blacklist, setBlacklist, onSave }) {
+function BlacklistPanel({ blacklist, input, setInput, errors, setErrors, onSave }) {
+  function updateBlacklistField(key, value) {
+    setInput({ ...input, [key]: value });
+    if (errors[key]) {
+      setErrors({ ...errors, [key]: "" });
+    }
+  }
+
   return (
     <section className="panel-grid double">
       <div className="panel">
@@ -469,26 +735,45 @@ function BlacklistPanel({ blacklist, setBlacklist, onSave }) {
         <p className="muted">Bổ sung email, công ty và số điện thoại cần cảnh báo cho hệ thống.</p>
         <label>
           <span>Công ty</span>
-          <textarea rows="5" value={blacklist.companies.join("\n")} onChange={(e) => setBlacklist({ ...blacklist, companies: e.target.value.split("\n").filter(Boolean) })} />
+          <textarea rows="8" value={input.companiesText} onChange={(e) => updateBlacklistField("companiesText", e.target.value)} />
+          <small className="helper-text">Mỗi dòng là một công ty. Hệ thống sẽ tự loại bỏ mục trùng lặp khi lưu.</small>
+          <small className="count-text">Đã nhập: {splitLines(input.companiesText).length} công ty</small>
         </label>
         <label>
           <span>Email</span>
-          <textarea rows="5" value={blacklist.emails.join("\n")} onChange={(e) => setBlacklist({ ...blacklist, emails: e.target.value.split("\n").filter(Boolean) })} />
+          <textarea
+            rows="8"
+            value={input.emailsText}
+            onChange={(e) => updateBlacklistField("emailsText", e.target.value)}
+            className={errors.emailsText ? "input-error" : ""}
+          />
+          <small className="helper-text">Mỗi dòng là một email. Ví dụ: `abc@company.com`</small>
+          <small className="count-text">Đã nhập: {splitLines(input.emailsText).length} email</small>
+          {errors.emailsText && <small className="error-text">{errors.emailsText}</small>}
         </label>
         <label>
           <span>Số điện thoại</span>
-          <textarea rows="5" value={blacklist.phones.join("\n")} onChange={(e) => setBlacklist({ ...blacklist, phones: e.target.value.split("\n").filter(Boolean) })} />
+          <textarea
+            rows="8"
+            value={input.phonesText}
+            onChange={(e) => updateBlacklistField("phonesText", e.target.value)}
+            className={errors.phonesText ? "input-error" : ""}
+          />
+          <small className="helper-text">Mỗi dòng là một số điện thoại. Có thể nhập `0909...` hoặc `+84...`</small>
+          <small className="count-text">Đã nhập: {splitLines(input.phonesText).length} số điện thoại</small>
+          {errors.phonesText && <small className="error-text">{errors.phonesText}</small>}
         </label>
         <button className="primary-btn" onClick={onSave}>Lưu blacklist</button>
       </div>
 
       <div className="panel">
-        <h3>Giá trị demo</h3>
+        <h3>Dữ liệu đã lưu</h3>
         <div className="list">
           <div className="list-row"><span>Số công ty cảnh báo</span><strong>{blacklist.companies.length}</strong></div>
           <div className="list-row"><span>Số email cảnh báo</span><strong>{blacklist.emails.length}</strong></div>
           <div className="list-row"><span>Số điện thoại cảnh báo</span><strong>{blacklist.phones.length}</strong></div>
         </div>
+        <p className="muted">Bạn có thể dán cả danh sách dài, mỗi mục trên một dòng. Khi lưu, hệ thống sẽ tự chuẩn hóa và loại bỏ dữ liệu trùng.</p>
       </div>
     </section>
   );
