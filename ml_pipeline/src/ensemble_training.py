@@ -88,24 +88,57 @@ class EnsembleJobClassifier:
         self.best_model = None
         self.best_model_name = None
         
-    def load_and_prepare_data(self):
-        """Load và chuẩn bị dữ liệu"""
-        print("Đang load dữ liệu...")
+    def load_and_prepare_data(self, data_path="../../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv"):
+        """Load và chuẩn bị dữ liệu
         
-        # Load data với labels đã cải thiện
-        df = pd.read_csv("../data/JOB_DATA_IMPROVED_LABELS.csv")
+        Args:
+            data_path: Đường dẫn đến file CSV
+                - Nếu file có cột 'Label' và 'FULL_TEXT': sử dụng trực tiếp
+                - Nếu file chỉ có dữ liệu thô: tự động tạo các cột này
+        """
+        print(f"📂 Đang load dữ liệu từ: {data_path}")
+        
+        df = pd.read_csv(data_path)
+        print(f"✓ Kích thước: {df.shape[0]} dòng, {df.shape[1]} cột")
+        print(f"✓ Các cột: {df.columns.tolist()[:10]}...")
+        
+        # Nếu chưa có FULL_TEXT, tạo từ các cột text có sẵn
+        if 'FULL_TEXT' not in df.columns:
+            print("\n⚙️  Tạo FULL_TEXT từ các cột có sẵn...")
+            text_cols = [col for col in df.columns 
+                        if col in ['Job Title', 'Job Description', 'Job Requirements', 
+                                  'Benefits', 'Company Overview']]
+            
+            df['FULL_TEXT'] = df[text_cols].fillna('').agg(' '.join, axis=1)
+            print(f"✓ Đã tạo FULL_TEXT từ {len(text_cols)} cột: {text_cols}")
+        
+        # Nếu chưa có Label, liệu có cách để tạo không?
+        if 'Label' not in df.columns:
+            print("\n⚠️  Cảnh báo: Không tìm thấy cột 'Label'")
+            print("   Các cột có sẵn:", df.columns.tolist()[:15])
+            raise ValueError("File CSV cần phải có cột 'Label' cho training")
+        
         # Lọc theo confidence nếu cần
-        if self.use_high_confidence:
+        if self.use_high_confidence and 'confidence' in df.columns:
             original_size = len(df)
             df = df[df['confidence'] >= self.confidence_threshold]
-            print(f"Lọc high-confidence: {original_size} -> {len(df)} mẫu")
+            print(f"✓ Lọc high-confidence: {original_size} → {len(df)} mẫu")
+        elif self.use_high_confidence:
+            print("⚠️  Không tìm thấy cột 'confidence', bỏ qua bước lọc")
         
         return df
     
     def prepare_features(self, df, fit=True):
-        """Chuẩn bị features"""
+        """Chuẩn bị features
+        
+        Xử lý 2 trường hợp:
+        1. Dữ liệu đã được xử lý: có FULL_TEXT + numeric features
+        2. Dữ liệu thô: chỉ có FULL_TEXT
+        """
+        print("\n🔧 Chuẩn bị features...")
         
         # 1. Text features (TF-IDF)
+        print("  1️⃣  TF-IDF vectorization...")
         X_text_raw = df['FULL_TEXT'].fillna("")
         
         if fit:
@@ -113,7 +146,9 @@ class EnsembleJobClassifier:
         else:
             X_text = self.tfidf.transform(X_text_raw)
         
-        # 2. Numeric features (engineered features)
+        print(f"     ✓ Shape: {X_text.shape}")
+        
+        # 2. Numeric features (nếu có)
         numeric_features = [
             # Text features
             'text_length', 'char_length', 'avg_word_length',
@@ -141,17 +176,22 @@ class EnsembleJobClassifier:
         
         # Lọc các features có trong data
         available_features = [f for f in numeric_features if f in df.columns]
-        print(f"Sử dụng {len(available_features)} numeric features")
         
-        X_num = df[available_features].fillna(0)
-        
-        if fit:
-            X_num_scaled = self.scaler.fit_transform(X_num)
+        if available_features:
+            print(f"  2️⃣  Numeric features: {len(available_features)}/{len(numeric_features)} có sẵn")
+            X_num = df[available_features].fillna(0)
+            
+            if fit:
+                X_num_scaled = self.scaler.fit_transform(X_num)
+            else:
+                X_num_scaled = self.scaler.transform(X_num)
+            
+            # 3. Combine
+            X = hstack([X_text, X_num_scaled])
+            print(f"     ✓ Combined shape: {X.shape}")
         else:
-            X_num_scaled = self.scaler.transform(X_num)
-        
-        # 3. Combine
-        X = hstack([X_text, X_num_scaled])
+            print(f"  2️⃣  Không có numeric features sẵn, sử dụng TF-IDF text features")
+            X = X_text
         
         return X
     
@@ -307,23 +347,42 @@ class EnsembleJobClassifier:
         
         return fig
     
-    def run_complete_pipeline(self):
-        """Chạy toàn bộ pipeline"""
+    def run_complete_pipeline(self, data_path="../../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv"):
+        """Chạy toàn bộ pipeline
+        
+        Args:
+            data_path: Đường dẫn tới file CSV training
+        """
+        
+        print("\n" + "="*80)
+        print("BƯỚC 1: LOAD VÀ KIỂM TRA DỮ LIỆU")
+        print("="*80)
         
         # 1. Load data
-        df = self.load_and_prepare_data()
+        df = self.load_and_prepare_data(data_path)
         
-        print(f"\nPhân bố labels:")
-        print(df['Label'].value_counts())
-        print(f"Tỷ lệ FAKE: {(1 - df['Label'].mean())*100:.2f}%")
+        print(f"\n📊 Phân bố labels:")
+        label_counts = df['Label'].value_counts()
+        for label, count in label_counts.items():
+            percentage = (count / len(df)) * 100
+            label_name = 'REAL' if label == 1 else 'FAKE'
+            print(f"   {label_name}: {count:,} ({percentage:.2f}%)")
         
         # 2. Prepare features
+        print("\n" + "="*80)
+        print("BƯỚC 2: CHUẨN BỊ FEATURES")
+        print("="*80)
         X = self.prepare_features(df, fit=True)
         y = df['Label']
         
-        print(f"\nShape: X={X.shape}, y={y.shape}")
+        print(f"\n📐 Kích thước dữ liệu:")
+        print(f"   X: {X.shape}")
+        print(f"   y: {y.shape}")
         
         # 3. Train/Test split
+        print("\n" + "="*80)
+        print("BƯỚC 3: CHIA TRAIN/TEST")
+        print("="*80)
         X_train, X_test, y_train, y_test, idx_train, idx_test = train_test_split(
             X, y, df.index,
             test_size=0.2,
@@ -331,15 +390,25 @@ class EnsembleJobClassifier:
             stratify=y
         )
         
-        print(f"Train: {X_train.shape[0]}, Test: {X_test.shape[0]}")
+        print(f"   Train set: {X_train.shape[0]:,} mẫu")
+        print(f"   Test set:  {X_test.shape[0]:,} mẫu")
         
         # 4. Train và evaluate từng model
+        print("\n" + "="*80)
+        print("BƯỚC 4: HUẤn luyện CÁC MODELS")
+        print("="*80)
         results = self.train_and_evaluate_models(X_train, X_test, y_train, y_test)
         
         # 5. Cross-validation
+        print("\n" + "="*80)
+        print("BƯỚC 5: CROSS-VALIDATION (5-FOLD)")
+        print("="*80)
         self.cross_validation_evaluation(X, y)
         
         # 6. Tạo ensemble
+        print("\n" + "="*80)
+        print("BƯỚC 6: VOTING ENSEMBLE")
+        print("="*80)
         voting_clf = self.create_voting_ensemble(results)
         voting_clf.fit(X_train, y_train)
         
@@ -349,29 +418,32 @@ class EnsembleJobClassifier:
         
         from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
         
-        print(f"\n\n{'='*80}")
-        print("VOTING ENSEMBLE RESULTS")
+        print(f"\n{'='*80}")
+        print("KẾT QUẢ VOTING ENSEMBLE")
         print("="*80)
-        print(f"Accuracy:  {accuracy_score(y_test, y_pred_ensemble):.4f}")
-        print(f"Precision: {precision_score(y_test, y_pred_ensemble):.4f}")
-        print(f"Recall:    {recall_score(y_test, y_pred_ensemble):.4f}")
-        print(f"F1-Score:  {f1_score(y_test, y_pred_ensemble):.4f}")
-        print(f"AUC-ROC:   {roc_auc_score(y_test, y_proba_ensemble):.4f}")
+        print(f"   Accuracy:  {accuracy_score(y_test, y_pred_ensemble):.4f}")
+        print(f"   Precision: {precision_score(y_test, y_pred_ensemble):.4f}")
+        print(f"   Recall:    {recall_score(y_test, y_pred_ensemble):.4f}")
+        print(f"   F1-Score:  {f1_score(y_test, y_pred_ensemble):.4f}")
+        print(f"   AUC-ROC:   {roc_auc_score(y_test, y_proba_ensemble):.4f}")
         
         # 7. Tìm best single model
         best_name = max(results.items(), key=lambda x: x[1]['f1'])[0]
         self.best_model = results[best_name]['model']
         self.best_model_name = best_name
         
-        print(f"\n\nBest Single Model: {best_name}")
-        print(f"F1-Score: {results[best_name]['f1']:.4f}")
+        print(f"\n🏆 Best Single Model: {best_name}")
+        print(f"   F1-Score: {results[best_name]['f1']:.4f}")
         
         # 8. Plot results
+        print("\n" + "="*80)
+        print("BƯỚC 7: VẼ BIỂU ĐỒ")
+        print("="*80)
         self.plot_results(results, y_test)
         
         # 9. Detailed report cho best model
-        print(f"\n\n{'='*80}")
-        print(f"DETAILED REPORT - {best_name}")
+        print(f"\n{'='*80}")
+        print(f"CHI TIẾT - {best_name}")
         print("="*80)
         print(classification_report(y_test, results[best_name]['y_pred'], 
                                    target_names=['FAKE', 'REAL']))
@@ -412,8 +484,8 @@ class EnsembleJobClassifier:
 # MAIN
 if __name__ == "__main__":
     
-    print("="*80)
-    print("HỆ THỐNG PHÂN LOẠI TIN TUYỂN DỤNG - ENSEMBLE MODELS")
+    print("\n" + "="*80)
+    print("🤖 HỆ THỐNG PHÂN LOẠI TIN TUYỂN DỤNG - ENSEMBLE MODELS")
     print("="*80)
     
     # Khởi tạo classifier
@@ -422,24 +494,35 @@ if __name__ == "__main__":
         confidence_threshold=0.7
     )
     
-    # Chạy toàn bộ pipeline
-    results, voting_clf = classifier.run_complete_pipeline()
+    # Chạy pipeline với dữ liệu
+    # Bạn có thể thay đổi data_path tại đây:
+    # - "../../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv" - Dữ liệu đã xử lý (mặc định)
+    # - "../../data/JOB_DATA_FINAL.csv" - Dữ liệu thô (cần FULL_TEXT được tạo tự động)
+    
+    results, voting_clf = classifier.run_complete_pipeline(
+        data_path="../../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv"
+    )
     
     print("\n\n" + "="*80)
-    print("HOÀN THÀNH!")
+    print("✅ HOÀN THÀNH!")
     print("="*80)
-    print("\nĐã tạo các file:")
-    print("  - model_comparison.png: Biểu đồ so sánh models")
+    print("\n📁 Các file được tạo:")
+    print("   - model_comparison.png: Biểu đồ so sánh models")
     
     # Save models
     import joblib
+    import os
     
-    joblib.dump(classifier.best_model, 'best_model.pkl')
-    joblib.dump(voting_clf, 'voting_ensemble.pkl')
-    joblib.dump(classifier.tfidf, 'tfidf_vectorizer.pkl')
-    joblib.dump(classifier.scaler, 'scaler.pkl')
+    output_dir = "../../models"
+    os.makedirs(output_dir, exist_ok=True)
     
-    print("  - best_model.pkl: Best single model")
-    print("  - voting_ensemble.pkl: Ensemble model")
-    print("  - tfidf_vectorizer.pkl: TF-IDF vectorizer")
-    print("  - scaler.pkl: Feature scaler")
+    joblib.dump(classifier.best_model, f'{output_dir}/best_model.pkl')
+    joblib.dump(voting_clf, f'{output_dir}/voting_ensemble.pkl')
+    joblib.dump(classifier.tfidf, f'{output_dir}/tfidf_vectorizer.pkl')
+    joblib.dump(classifier.scaler, f'{output_dir}/scaler.pkl')
+    
+    print(f"   - {output_dir}/best_model.pkl")
+    print(f"   - {output_dir}/voting_ensemble.pkl")
+    print(f"   - {output_dir}/tfidf_vectorizer.pkl")
+    print(f"   - {output_dir}/scaler.pkl")
+    print("\n🎯 Các models đã sẵn sàng để sử dụng!")
