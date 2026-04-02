@@ -513,7 +513,7 @@ if __name__ == "__main__":
     import joblib
     import os
     
-    output_dir = "../../models"
+    output_dir = "../../Khuong_models"
     os.makedirs(output_dir, exist_ok=True)
     
     joblib.dump(classifier.best_model, f'{output_dir}/best_model.pkl')
