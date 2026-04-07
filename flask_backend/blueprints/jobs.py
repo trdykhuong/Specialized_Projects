@@ -17,13 +17,13 @@ def _predictor():
 # Danh sách jobs (public)
 # ------------------------------------------------------------------ #
 
-# @jobs_bp.get("")
-# def list_jobs():
-#     query     = request.args.get("query", "")
-#     risk      = request.args.get("risk", "ALL")
-#     page      = max(int(request.args.get("page", 1)), 1)
-#     page_size = max(int(request.args.get("pageSize", request.args.get("limit", 12))), 1)
-#     return jsonify(_predictor().list_jobs(query=query, risk=risk, page=page, page_size=page_size))
+@jobs_bp.get("")
+def list_jobs():
+    query = request.args.get("query", "")
+    risk = request.args.get("risk", "ALL")
+    page = max(int(request.args.get("page", 1)), 1)
+    page_size = max(int(request.args.get("pageSize", request.args.get("limit", 12))), 1)
+    return jsonify(_predictor().list_jobs(query=query, risk=risk, page=page, page_size=page_size))
 
 
 # ------------------------------------------------------------------ #
@@ -82,25 +82,25 @@ def update_blacklist():
 # Gợi ý cá nhân hóa
 # ------------------------------------------------------------------ #
 
-# @jobs_bp.post("/recommend")
-# def recommend():
-#     """
-#     Gợi ý job phù hợp. Nếu đã đăng nhập → dùng preferences từ profile.
-#     Vẫn hỗ trợ anonymous qua payload tay.
-#     """
-#     payload = request.get_json(silent=True) or {}
+@jobs_bp.post("/recommend")
+def recommend():
+    """
+    Gợi ý job phù hợp. Nếu đã đăng nhập → vẫn cho phép payload tay,
+    còn khi chưa có preferences lưu trong backend thì frontend có thể gửi trực tiếp.
+    """
+    payload = request.get_json(silent=True) or {}
 
-#     try:
-#         verify_jwt_in_request(optional=True)
-#         user_id = get_jwt_identity()
-#         if user_id:
-#             from models import User
-#             user = User.query.get(int(user_id))
-#             if user:
-#                 payload.setdefault("keywords", user.keywords)
-#                 payload.setdefault("jobTypes", user.job_types)
-#                 payload.setdefault("preferredRisk", user.preferred_risk_list)
-#     except Exception:
-#         pass
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            from models import User
+            user = User.query.get(int(user_id))
+            if user:
+                payload.setdefault("keywords", [])
+                payload.setdefault("jobTypes", [])
+                payload.setdefault("preferredRisk", ["LOW", "MEDIUM"])
+    except Exception:
+        pass
 
-#     return jsonify(_predictor().recommend_jobs(payload))
+    return jsonify(_predictor().recommend_jobs(payload))

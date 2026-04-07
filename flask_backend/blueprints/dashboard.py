@@ -16,13 +16,13 @@ def _predictor():
 # Tổng quan hệ thống — giữ nguyên từ code gốc, chỉ chuyển sang blueprint
 # ------------------------------------------------------------------ #
 
-# @dashboard_bp.get("/overview")
-# def system_overview():
-#     """
-#     Thống kê toàn bộ dataset: tổng job, phân bố rủi ro,
-#     top công ty, top lý do nghi ngờ.
-#     """
-#     return jsonify(_predictor().get_dashboard_overview())
+@dashboard_bp.get("/overview")
+def system_overview():
+    """
+    Thống kê toàn bộ dataset: tổng job, phân bố rủi ro,
+    top công ty, top lý do nghi ngờ.
+    """
+    return jsonify(_predictor().get_dashboard_overview())
 
 
 # ------------------------------------------------------------------ #
