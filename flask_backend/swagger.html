@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recruitment Trust API — Swagger UI</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.min.css">
+  <style>
+    :root {
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --accent: #6366f1;
+      --accent-dim: #4f46e5;
+      --bg: #0f0f13;
+      --surface: #18181f;
+      --surface2: #22222d;
+      --border: #2e2e3d;
+      --text: #e4e4ef;
+      --text-dim: #8b8ba8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    #topbar .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        box-shadow: 0 0 8px var(--accent);
+      }
+
+      50% {
+        opacity: .6;
+        box-shadow: 0 0 18px var(--accent);
+      }
+    }
+
+    .logo-text {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      color: var(--text);
+      text-transform: uppercase;
+    }
+
+    .logo-version {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+
+    #topbar .spacer {
+      flex: 1;
+    }
+
+    .server-badge {
+      font-size: 12px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .server-badge input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 4px 10px;
+      width: 230px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .server-badge input:focus {
+      border-color: var(--accent);
+    }
+
+    /* ── Swagger override ── */
+    #swagger-wrapper {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+
+    /* hide default topbar */
+    .swagger-ui .topbar {
+      display: none !important;
+    }
+
+    .swagger-ui {
+      background: transparent !important;
+    }
+
+    .swagger-ui .info {
+      margin: 0 0 32px;
+    }
+
+    .swagger-ui .info .title {
+      color: var(--text) !important;
+      font-family: var(--font-mono);
+    }
+
+    .swagger-ui .info p,
+    .swagger-ui .info li,
+    .swagger-ui .info table {
+      color: var(--text-dim) !important;
+    }
+
+    .swagger-ui .scheme-container,
+    .swagger-ui section.models {
+      background: var(--surface) !important;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .swagger-ui .opblock-tag {
+      border-bottom: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      font-family: var(--font-mono) !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+    }
+
+    .swagger-ui .opblock-tag:hover {
+      background: var(--surface2) !important;
+    }
+
+    .swagger-ui .opblock {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 8px !important;
+      margin: 6px 0 !important;
+      box-shadow: none !important;
+    }
+
+    .swagger-ui .opblock.opblock-get .opblock-summary-method {
+      background: #1d4ed8 !important;
+    }
+
+    .swagger-ui .opblock.opblock-post .opblock-summary-method {
+      background: #065f46 !important;
+    }
+
+    .swagger-ui .opblock.opblock-patch .opblock-summary-method {
+      background: #78350f !important;
+    }
+
+    .swagger-ui .opblock.opblock-delete .opblock-summary-method {
+      background: #7f1d1d !important;
+    }
+
+    .swagger-ui .opblock-summary-method {
+      font-family: var(--font-mono) !important;
+      font-size: 11px !important;
+      letter-spacing: .06em !important;
+      border-radius: 5px !important;
+      min-width: 70px !important;
+    }
+
+    .swagger-ui .opblock-summary-path {
+      font-family: var(--font-mono) !important;
+      font-size: 13px !important;
+      color: var(--text) !important;
+    }
+
+    .swagger-ui .opblock-summary-description {
+      font-family: var(--font-mono) !important;
+      font-size: 12px !important;
+      color: var(--text-dim) !important;
+    }
+
+    .swagger-ui .opblock-body,
+    .swagger-ui .opblock-section,
+    .swagger-ui .parameters-container,
+    .swagger-ui .responses-wrapper {
+      background: var(--surface2) !important;
+    }
+
+    .swagger-ui input,
+    .swagger-ui textarea,
+    .swagger-ui select {
+      background: var(--bg) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      font-family: var(--font-mono) !important;
+      border-radius: 6px !important;
+    }
+
+    .swagger-ui .btn {
+      font-family: var(--font-mono) !important;
+      font-size: 12px !important;
+      border-radius: 6px !important;
+      letter-spacing: .04em !important;
+    }
+
+    .swagger-ui .btn.execute {
+      background: var(--accent) !important;
+      border-color: var(--accent-dim) !important;
+    }
+
+    .swagger-ui .btn.execute:hover {
+      background: var(--accent-dim) !important;
+    }
+
+    .swagger-ui .auth-wrapper .btn {
+      border-color: var(--accent) !important;
+      color: var(--accent) !important;
+    }
+
+    .swagger-ui table {
+      background: transparent !important;
+    }
+
+    .swagger-ui table thead tr th {
+      color: var(--text-dim) !important;
+      font-family: var(--font-mono) !important;
+      font-size: 11px !important;
+      border-color: var(--border) !important;
+    }
+
+    .swagger-ui table tbody tr td {
+      color: var(--text) !important;
+      font-family: var(--font-mono) !important;
+      font-size: 12px !important;
+      border-color: var(--border) !important;
+    }
+
+    .swagger-ui .response-col_status {
+      color: var(--accent) !important;
+    }
+
+    .swagger-ui .highlight-code {
+      background: var(--bg) !important;
+    }
+
+    .swagger-ui .microlight {
+      color: var(--text) !important;
+    }
+
+    .swagger-ui .model-title,
+    .swagger-ui .model {
+      color: var(--text) !important;
+      font-family: var(--font-mono) !important;
+    }
+
+    .swagger-ui .authorization__btn svg,
+    .swagger-ui .expand-methods svg,
+    .swagger-ui .expand-operation svg {
+      fill: var(--text-dim) !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+    }
+
+    .swagger-ui .dialog-ux .modal-ux-header,
+    .swagger-ui .dialog-ux .modal-ux-content {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+    }
+
+    /* ── status pill ── */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="topbar">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      <span class="logo-text">Recruitment Trust API</span>
+      <span class="logo-version">v1.0</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="server-badge">
+      Server:
+      <input id="server-input" value="http://localhost:5000" placeholder="http://localhost:5000">
+    </div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      Swagger UI 5.x
+    </div>
+  </div>
+
+  <div id="swagger-wrapper">
+    <div id="swagger-ui"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-standalone-preset.min.js"></script>
+  <script>
+    const spec = {
+      openapi: "3.0.3",
+      info: {
+        title: "Recruitment Trust API",
+        version: "1.0.0",
+        description: "Hệ thống phân tích độ tin cậy tin tuyển dụng — ML/heuristic, quản lý ứng tuyển cá nhân và thống kê."
+      },
+      servers: [{ url: "http://localhost:5000", description: "Local dev" }],
+      components: {
+        securitySchemes: {
+          BearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" }
+        },
+        schemas: {
+          Job: {
+            type: "object",
+            properties: {
+              title: { type: "string", example: "Lập trình viên Python" },
+              companyName: { type: "string", example: "Công ty Cổ phần ABC" },
+              description: { type: "string", example: "Phát triển backend hệ thống thương mại điện tử" },
+              requirements: { type: "string", example: "3 năm kinh nghiệm Python, biết Flask/FastAPI" },
+              benefits: { type: "string", example: "Bảo hiểm sức khoẻ, laptop công ty" },
+              salary: { type: "string", example: "20-30 triệu" },
+              address: { type: "string", example: "123 Hoàng Diệu, Đà Nẵng" },
+              email: { type: "string", example: "tuyendung@abc.com" },
+              phone: { type: "string", example: "0901234567" },
+              companySize: { type: "string", example: "50-200" },
+              experience: { type: "string", example: "3-5 năm" },
+              candidates: { type: "integer", example: 2 },
+              careerLevel: { type: "string", example: "Senior" },
+              jobType: { type: "string", example: "Full-time" }
+            }
+          },
+          AnalysisResult: {
+            type: "object",
+            properties: {
+              trustScore: { type: "number", example: 78.5 },
+              riskScore: { type: "number", example: 21.5 },
+              riskLevel: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+              riskLabel: { type: "string", example: "Thấp" },
+              confidence: { type: "number", example: 0.83 },
+              decision: { type: "string", example: "Tin cậy" },
+              modelReady: { type: "boolean" }
+            }
+          },
+          ApplicationStatus: {
+            type: "string",
+            enum: ["saved", "applied", "interviewing", "offered", "rejected", "withdrawn"]
+          },
+          Application: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              userId: { type: "integer" },
+              jobId: { type: "integer", nullable: true },
+              job: {
+                type: "object", properties: {
+                  title: { type: "string" }, companyName: { type: "string" },
+                  salary: { type: "string" }, location: { type: "string" }
+                }
+              },
+              status: { $ref: "#/components/schemas/ApplicationStatus" },
+              statusLabel: { type: "string", example: "Đang phỏng vấn" },
+              note: { type: "string" },
+              personalRating: { type: "integer", minimum: 1, maximum: 5, nullable: true },
+              trustScore: { type: "number" },
+              riskScore: { type: "number" },
+              riskLevel: { type: "string" },
+              appliedAt: { type: "string", format: "date-time" },
+              updatedAt: { type: "string", format: "date-time" }
+            }
+          },
+          SavedJob: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              userId: { type: "integer" },
+              jobId: { type: "integer", nullable: true },
+              job: { type: "object" },
+              note: { type: "string" },
+              trustScore: { type: "number" },
+              riskScore: { type: "number" },
+              riskLevel: { type: "string" },
+              savedAt: { type: "string", format: "date-time" }
+            }
+          },
+          User: {
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              email: { type: "string" },
+              name: { type: "string" },
+              createdAt: { type: "string", format: "date-time" },
+              preferences: {
+                type: "object", properties: {
+                  preferredRisk: { type: "array", items: { type: "string" } },
+                  keywords: { type: "array", items: { type: "string" } },
+                  jobTypes: { type: "array", items: { type: "string" } }
+                }
+              }
+            }
+          },
+          Paginated: {
+            type: "object",
+            properties: {
+              total: { type: "integer" },
+              page: { type: "integer" },
+              pageSize: { type: "integer" },
+              totalPages: { type: "integer" },
+              hasNext: { type: "boolean" },
+              hasPrevious: { type: "boolean" }
+            }
+          },
+          Error: {
+            type: "object",
+            properties: { error: { type: "string", example: "Mô tả lỗi" } }
+          }
+        }
+      },
+      tags: [
+        { name: "health", description: "Trạng thái hệ thống" },
+        { name: "auth", description: "Xác thực & quản lý tài khoản" },
+        { name: "jobs", description: "Phân tích tin tuyển dụng" },
+        { name: "blacklist", description: "Quản lý danh sách đen" },
+        { name: "applications", description: "Theo dõi trạng thái ứng tuyển" },
+        { name: "saved-jobs", description: "Lưu tin để ứng tuyển sau" },
+        { name: "stats", description: "Thống kê cá nhân" }
+      ],
+      paths: {
+
+        /* ── HEALTH ── */
+        "/api/health": {
+          get: {
+            tags: ["health"], summary: "Kiểm tra server",
+            description: "Trả về trạng thái server, model ML và dataset.",
+            responses: {
+              "200": {
+                description: "OK", content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        status: { type: "string", example: "ok" },
+                        message: { type: "string" },
+                        timestamp: { type: "string", format: "date-time" },
+                        modelLoaded: { type: "boolean" },
+                        datasetLoaded: { type: "boolean" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        /* ── AUTH ── */
+        "/api/auth/register": {
+          post: {
+            tags: ["auth"], summary: "Đăng ký tài khoản",
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object", required: ["email", "name", "password"],
+                    properties: {
+                      email: { type: "string", format: "email", example: "nguyen@example.com" },
+                      name: { type: "string", example: "Nguyễn Văn A" },
+                      password: { type: "string", minLength: 8, example: "matkhau123" }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              "201": {
+                description: "Tạo tài khoản thành công", content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        user: { $ref: "#/components/schemas/User" },
+                        accessToken: { type: "string" }
+                      }
+                    }
+                  }
+                }
+              },
+              "400": { description: "Thiếu thông tin / mật khẩu quá ngắn", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+              "409": { description: "Email đã tồn tại", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } }
+            }
+          }
+        },
+
+        "/api/auth/login": {
+          post: {
+            tags: ["auth"], summary: "Đăng nhập",
+            description: "Trả về JWT `accessToken`. Dùng token này ở nút **Authorize** phía trên.",
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object", required: ["email", "password"],
+                    properties: {
+                      email: { type: "string", format: "email", example: "nguyen@example.com" },
+                      password: { type: "string", example: "matkhau123" }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              "200": {
+                description: "Đăng nhập thành công", content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        user: { $ref: "#/components/schemas/User" },
+                        accessToken: { type: "string", example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+                      }
+                    }
+                  }
+                }
+              },
+              "401": { description: "Sai email hoặc mật khẩu" }
+            }
+          }
+        },
+
+        "/api/auth/change-password": {
+          post: {
+            tags: ["auth"], summary: "Đổi mật khẩu",
+            security: [{ BearerAuth: [] }],
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object", required: ["oldPassword", "newPassword"],
+                    properties: {
+                      oldPassword: { type: "string", example: "matkhau123" },
+                      newPassword: { type: "string", example: "matkhauMoi456" }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              "200": { description: "Đổi thành công" },
+              "400": { description: "Mật khẩu cũ sai hoặc mật khẩu mới quá ngắn" }
+            }
+          }
+        },
+
+        /* ── JOBS ── */
+        "/api/jobs/analyze": {
+          post: {
+            tags: ["jobs"], summary: "Phân tích một tin tuyển dụng",
+            description: "Trả về trustScore, riskScore, signals heuristic và kết quả ML (nếu model đã load).",
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    allOf: [
+                      { $ref: "#/components/schemas/Job" },
+                      {
+                        type: "object", properties: {
+                          candidateProfile: {
+                            type: "object", properties: {
+                              keywords: { type: "array", items: { type: "string" }, example: ["python", "flask"] },
+                              jobTypes: { type: "array", items: { type: "string" }, example: ["Full-time"] }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    example: {
+                      title: "Lập trình viên Python",
+                      companyName: "Công ty ABC",
+                      description: "Phát triển và bảo trì hệ thống backend cho nền tảng thương mại điện tử quy mô lớn.",
+                      requirements: "3+ năm kinh nghiệm Python, biết Flask hoặc FastAPI, quen với PostgreSQL.",
+                      benefits: "Bảo hiểm sức khoẻ, thưởng dự án, 12 ngày phép năm.",
+                      salary: "25-35 triệu",
+                      address: "123 Hoàng Diệu, Đà Nẵng",
+                      email: "hr@abc.com.vn",
+                      phone: "0901234567",
+                      companySize: "50-200",
+                      experience: "3-5 năm",
+                      candidates: 2,
+                      careerLevel: "Senior",
+                      jobType: "Full-time"
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              "200": {
+                description: "Kết quả phân tích", content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        job: { $ref: "#/components/schemas/Job" },
+                        result: { $ref: "#/components/schemas/AnalysisResult" },
+                        signals: { type: "array", items: { type: "string" } },
+                        blacklist: { type: "object", properties: { hasMatch: { type: "boolean" }, details: { type: "array", items: { type: "string" } } } },
+                        personalization: { type: "object", properties: { fitScore: { type: "number" }, matchedKeywords: { type: "array", items: { type: "string" } } } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        "/api/jobs/batch-analyze": {
+          post: {
+            tags: ["jobs"], summary: "Phân tích nhiều tin cùng lúc (tối đa 50)",
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      jobs: { type: "array", items: { $ref: "#/components/schemas/Job" }, description: "Danh sách job đã parse" },
+                      rawText: { type: "string", description: "Văn bản thô — tự động tách các tin theo đoạn trống" }
+                    },
+                    example: { jobs: [], rawText: "Vị trí: Lập trình viên\nCông ty: ABC\nLương: 20 triệu\n\nVị trí: Data Analyst\nCông ty: XYZ\nLương: 25 triệu" }
+                  }
+                }
+              }
+            },
+            responses: { "200": { description: "Kết quả batch" } }
+          }
+        },
+
+        /* ── BLACKLIST ── */
+        "/api/jobs/blacklist": {
+          get: {
+            tags: ["blacklist"], summary: "Xem danh sách đen",
+            responses: { "200": { description: "Danh sách công ty, email, số điện thoại trong blacklist" } }
+          }
+        },
+
+        "/api/jobs/blacklist/check": {
+          post: {
+            tags: ["blacklist"], summary: "Kiểm tra job với blacklist",
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { job: { $ref: "#/components/schemas/Job" } }
+                  }
+                }
+              }
+            },
+            responses: {
+              "200": {
+                description: "Kết quả kiểm tra", content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        hasMatch: { type: "boolean" },
+                        details: { type: "array", items: { type: "string" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        "/api/jobs/blacklist/update": {
+          post: {
+            tags: ["blacklist"], summary: "Cập nhật blacklist",
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      companies: { type: "array", items: { type: "string" }, example: ["Công ty Lừa Đảo"] },
+                      emails: { type: "array", items: { type: "string" }, example: ["lua@gmail.com"] },
+                      phones: { type: "array", items: { type: "string" }, example: ["0900000000"] }
+                    }
+                  }
+                }
+              }
+            },
+            responses: { "200": { description: "Blacklist sau cập nhật" } }
+          }
+        },
+
+        /* ── APPLICATIONS ── */
+        "/api/applications": {
+          get: {
+            tags: ["applications"], summary: "Danh sách lần đã ứng tuyển",
+            security: [{ BearerAuth: [] }],
+            parameters: [
+              { name: "status", in: "query", schema: { $ref: "#/components/schemas/ApplicationStatus" }, description: "Lọc theo trạng thái" },
+              { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+              { name: "pageSize", in: "query", schema: { type: "integer", default: 20 } }
+            ],
+            responses: {
+              "200": {
+                description: "OK", content: {
+                  "application/json": {
+                    schema: {
+                      allOf: [
+                        { $ref: "#/components/schemas/Paginated" },
+                        { type: "object", properties: { items: { type: "array", items: { $ref: "#/components/schemas/Application" } } } }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          post: {
+            tags: ["applications"], summary: "Ghi nhận ứng tuyển mới",
+            security: [{ BearerAuth: [] }],
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object", required: ["job"],
+                    properties: {
+                      job: { $ref: "#/components/schemas/Job" },
+                      jobId: { type: "integer", description: "ID trong dataset nếu có", example: 42 },
+                      status: { $ref: "#/components/schemas/ApplicationStatus" },
+                      note: { type: "string", example: "Gửi CV qua email ngày 1/4" },
+                      personalRating: { type: "integer", minimum: 1, maximum: 5, example: 4 },
+                      trustScore: { type: "number", example: 78.5 },
+                      riskScore: { type: "number", example: 21.5 },
+                      riskLevel: { type: "string", example: "LOW" }
+                    },
+                    example: {
+                      job: { title: "Backend Developer", companyName: "Startup XYZ", salary: "25 triệu", location: "TP HCM" },
+                      jobId: 42,
+                      status: "applied",
+                      note: "Gửi CV qua email ngày 1/4, chờ phản hồi",
+                      trustScore: 78.5,
+                      riskScore: 21.5,
+                      riskLevel: "LOW"
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              "201": { description: "Tạo thành công", content: { "application/json": { schema: { $ref: "#/components/schemas/Application" } } } },
+              "400": { description: "Thiếu thông tin job" }
+            }
+          }
+        },
+
+        "/api/applications/{id}": {
+          get: {
+            tags: ["applications"], summary: "Chi tiết một lần ứng tuyển",
+            security: [{ BearerAuth: [] }],
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+            responses: {
+              "200": { description: "OK", content: { "application/json": { schema: { $ref: "#/components/schemas/Application" } } } },
+              "404": { description: "Không tìm thấy" }
+            }
+          },
+          patch: {
+            tags: ["applications"], summary: "Cập nhật trạng thái / ghi chú / rating",
+            security: [{ BearerAuth: [] }],
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      status: { $ref: "#/components/schemas/ApplicationStatus" },
+                      note: { type: "string", example: "Phỏng vấn vòng 2 ngày 15/4" },
+                      personalRating: { type: "integer", minimum: 1, maximum: 5 }
+                    },
+                    example: { status: "interviewing", note: "Phỏng vấn vòng 1 ngày 10/4 lúc 9h" }
+                  }
+                }
+              }
+            },
+            responses: {
+              "200": { description: "OK", content: { "application/json": { schema: { $ref: "#/components/schemas/Application" } } } }
+            }
+          },
+          delete: {
+            tags: ["applications"], summary: "Xóa",
+            security: [{ BearerAuth: [] }],
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+            responses: {
+              "200": { description: "Xóa thành công" },
+              "404": { description: "Không tìm thấy" }
+            }
+          }
+        },
+
+        /* ── SAVED JOBS ── */
+        "/api/saved-jobs": {
+          get: {
+            tags: ["saved-jobs"], summary: "Danh sách tin đã lưu",
+            security: [{ BearerAuth: [] }],
+            parameters: [
+              { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+              { name: "pageSize", in: "query", schema: { type: "integer", default: 20 } }
+            ],
+            responses: { "200": { description: "OK" } }
+          },
+          post: {
+            tags: ["saved-jobs"], summary: "Lưu tin để ứng tuyển sau",
+            security: [{ BearerAuth: [] }],
+            requestBody: {
+              required: true, content: {
+                "application/json": {
+                  schema: {
+                    type: "object", required: ["job"],
+                    properties: {
+                      job: { $ref: "#/components/schemas/Job" },
+                      jobId: { type: "integer" },
+                      note: { type: "string", example: "Deadline 30/4, yêu cầu portfolio" },
+                      trustScore: { type: "number" },
+                      riskScore: { type: "number" },
+                      riskLevel: { type: "string" }
+                    },
+                    example: {
+                      job: { title: "UI/UX Designer", companyName: "Agency Z", salary: "18-22 triệu", location: "Hà Nội" },
+                      jobId: 88,
+                      note: "Deadline 30/4, cần chuẩn bị portfolio",
+                      trustScore: 91.0, riskScore: 9.0, riskLevel: "LOW"
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              "201": { description: "Lưu thành công", content: { "application/json": { schema: { $ref: "#/components/schemas/SavedJob" } } } },
+              "409": { description: "Tin đã được lưu trước đó" }
+            }
+          }
+        },
+
+        "/api/saved-jobs/{id}": {
+          patch: {
+            tags: ["saved-jobs"], summary: "Cập nhật ghi chú",
+            security: [{ BearerAuth: [] }],
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+            requestBody: {
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object", properties: { note: { type: "string", example: "Deadline dời sang 15/5" } }
+                  }
+                }
+              }
+            },
+            responses: { "200": { description: "OK" } }
+          },
+          delete: {
+            tags: ["saved-jobs"], summary: "Bỏ lưu",
+            security: [{ BearerAuth: [] }],
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+            responses: { "200": { description: "Đã bỏ lưu" } }
+          }
+        },
+
+        "/api/saved-jobs/{id}/apply": {
+          post: {
+            tags: ["saved-jobs"], summary: "Chuyển sang ứng tuyển (apply now)",
+            description: "Tạo Application mới từ SavedJob rồi xoá SavedJob. Trả về Application mới.",
+            security: [{ BearerAuth: [] }],
+            parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+            requestBody: {
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { note: { type: "string", example: "Nộp ngay hôm nay trước deadline" } }
+                  }
+                }
+              }
+            },
+            responses: {
+              "201": { description: "Application mới tạo", content: { "application/json": { schema: { $ref: "#/components/schemas/Application" } } } },
+              "404": { description: "Không tìm thấy saved job" }
+            }
+          }
+        },
+
+        /* ── STATS ── */
+        "/api/stats/overview": {
+          get: {
+            tags: ["stats"], summary: "Tổng quan thống kê cá nhân",
+            security: [{ BearerAuth: [] }],
+            description: "Trả về: tổng apply, số tin đã lưu, avg trust score, tỷ lệ offer, phân bố trạng thái & rủi ro, số apply theo tháng.",
+            responses: {
+              "200": {
+                description: "OK", content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        total: { type: "integer" },
+                        savedCount: { type: "integer" },
+                        averageTrustScore: { type: "number" },
+                        successRate: { type: "number", description: "% offer / total" },
+                        statusDistribution: { type: "array", items: { type: "object" } },
+                        riskDistribution: { type: "array", items: { type: "object" } },
+                        monthlyApplications: { type: "array", items: { type: "object", properties: { month: { type: "string" }, count: { type: "integer" } } } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        "/api/stats/risk-summary": {
+          get: {
+            tags: ["stats"], summary: "Phân tích rủi ro trong lịch sử ứng tuyển",
+            security: [{ BearerAuth: [] }],
+            description: "Bao nhiêu lần apply tin rủi ro cao, avg trust score theo từng trạng thái.",
+            responses: {
+              "200": {
+                description: "OK", content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        highRiskApplied: { type: "integer" },
+                        averageTrustByStatus: { type: "object" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    // Sync server URL from input
+    document.getElementById('server-input').addEventListener('change', function () {
+      spec.servers[0].url = this.value.trim();
+      renderSwagger();
+    });
+
+    function renderSwagger() {
+      SwaggerUIBundle({
+        spec,
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "StandaloneLayout",
+        tryItOutEnabled: true,
+        requestInterceptor: (req) => {
+          const server = document.getElementById('server-input').value.trim();
+          if (server) req.url = req.url.replace(/^https?:\/\/[^/]+/, server);
+          return req;
+        }
+      });
+    }
+
+    renderSwagger();
+  </script>
+</body>
+
+</html>
