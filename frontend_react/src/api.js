@@ -110,6 +110,12 @@ export const api = {
   getSavedJobs(params = {}) {
     return request(withQuery("/saved-jobs", params));
   },
+  createSavedJob(payload) {
+    return request("/saved-jobs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   updateSavedJob(id, payload) {
     return request(`/saved-jobs/${id}`, {
       method: "PATCH",
@@ -129,6 +135,12 @@ export const api = {
   },
   getApplications(params = {}) {
     return request(withQuery("/applications", params));
+  },
+  createApplication(payload) {
+    return request("/applications", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
   updateApplication(id, payload) {
     return request(`/applications/${id}`, {

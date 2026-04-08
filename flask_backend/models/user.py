@@ -18,10 +18,10 @@ class User(db.Model):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    # # Personalization preferences (dùng cho recommend_jobs)
-    # preferred_risk = db.Column(db.String(50), default="LOW,MEDIUM")  # "LOW", "LOW,MEDIUM", v.v.
-    # keywords_json = db.Column(db.Text, default="[]")  # JSON array of strings
-    # job_types_json = db.Column(db.Text, default="[]")  # JSON array of strings
+    # Personalization preferences (dùng cho recommend_jobs)
+    preferred_risk = db.Column(db.String(50), default="LOW,MEDIUM")
+    keywords_json = db.Column(db.Text, default="[]")
+    job_types_json = db.Column(db.Text, default="[]")
 
     # Relationships
     applications = db.relationship("Application", back_populates="user", lazy="dynamic", cascade="all, delete-orphan")
@@ -63,6 +63,14 @@ class User(db.Model):
     def job_types(self, value: list[str]) -> None:
         self.job_types_json = json.dumps(value, ensure_ascii=False)
 
+    @property
+    def preferred_risk_levels(self) -> list[str]:
+        raw = str(self.preferred_risk or "").strip()
+        if not raw:
+            return ["LOW", "MEDIUM"]
+        valid = {"LOW", "MEDIUM", "HIGH"}
+        return [item for item in (part.strip().upper() for part in raw.split(",")) if item in valid] or ["LOW", "MEDIUM"]
+
 
     # ------------------------------------------------------------------ #
     # Serialization
@@ -75,4 +83,10 @@ class User(db.Model):
             "name": self.name,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
+        if include_preferences:
+            data["preferences"] = {
+                "keywords": self.keywords,
+                "jobTypes": self.job_types,
+                "preferredRisk": self.preferred_risk_levels,
+            }
         return data

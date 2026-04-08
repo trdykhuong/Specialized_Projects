@@ -41,6 +41,10 @@ def analyze_job():
         if user_id:
             from models import User
             user = User.query.get(int(user_id))
+            if user:
+                payload.setdefault("candidateProfile", {})
+                payload["candidateProfile"].setdefault("keywords", user.keywords)
+                payload["candidateProfile"].setdefault("jobTypes", user.job_types)
     except Exception:
         pass
 
@@ -97,9 +101,9 @@ def recommend():
             from models import User
             user = User.query.get(int(user_id))
             if user:
-                payload.setdefault("keywords", [])
-                payload.setdefault("jobTypes", [])
-                payload.setdefault("preferredRisk", ["LOW", "MEDIUM"])
+                payload.setdefault("keywords", user.keywords)
+                payload.setdefault("jobTypes", user.job_types)
+                payload.setdefault("preferredRisk", user.preferred_risk_levels)
     except Exception:
         pass
 

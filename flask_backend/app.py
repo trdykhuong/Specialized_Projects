@@ -22,6 +22,7 @@ import pandas as pd
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import inspect, text
 from scipy.sparse import hstack
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -35,6 +36,25 @@ if str(BASE_DIR) not in sys.path:
 from extensions import db, jwt, migrate
 from blueprints import auth, jobs, dashboard, applications, saved_jobs, stats
 from services.recruitment_trust import RecruitmentTrustService
+
+
+def _ensure_user_preference_columns() -> None:
+    inspector = inspect(db.engine)
+    column_names = {column["name"] for column in inspector.get_columns("users")}
+    statements: list[str] = []
+
+    if "preferred_risk" not in column_names:
+        statements.append("ALTER TABLE users ADD COLUMN preferred_risk VARCHAR(50) DEFAULT 'LOW,MEDIUM'")
+    if "keywords_json" not in column_names:
+        statements.append("ALTER TABLE users ADD COLUMN keywords_json TEXT DEFAULT '[]'")
+    if "job_types_json" not in column_names:
+        statements.append("ALTER TABLE users ADD COLUMN job_types_json TEXT DEFAULT '[]'")
+
+    for statement in statements:
+        db.session.execute(text(statement))
+
+    if statements:
+        db.session.commit()
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -64,6 +84,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     with app.app_context():
         db.create_all()
+        _ensure_user_preference_columns()
 
     # ------------------------------------------------------------------ #
     # ML / Trust service (singleton, thread-safe read)
