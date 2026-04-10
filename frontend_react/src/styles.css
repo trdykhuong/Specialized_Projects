@@ -202,6 +202,7 @@ textarea {
 }
 
 .auth-tabs,
+.segmented-switch,
 .hero-actions,
 .card-actions,
 .job-card-top,
@@ -703,6 +704,29 @@ textarea {
   border-radius: 22px;
 }
 
+.application-card.compact {
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  cursor: pointer;
+}
+
+.application-card.compact h4 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.application-card.compact .pill {
+  padding: 6px 10px;
+  font-size: 10px;
+}
+
+.application-card.compact .card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -754,6 +778,86 @@ textarea {
 .multi-select-grid {
   display: grid;
   gap: 12px;
+}
+
+.segmented-switch {
+  width: fit-content;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.quick-job-list,
+.batch-result-list,
+.user-blacklist-list,
+.vertical-list {
+  display: grid;
+  gap: 12px;
+}
+
+.quick-job-card,
+.batch-result-card,
+.user-blacklist-item,
+.list-chip {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+}
+
+.quick-job-card,
+.user-blacklist-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-blacklist-item.warning {
+  background: rgba(197, 83, 69, 0.12);
+  color: #8f3128;
+}
+
+.quick-job-card p,
+.batch-result-card p,
+.user-blacklist-item p,
+.list-chip span {
+  margin: 4px 0 0;
+}
+
+.user-blacklist-meta {
+  display: grid;
+  gap: 10px;
+}
+
+.mini-field {
+  display: grid;
+  gap: 4px;
+}
+
+.mini-field span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mini-field strong {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.quick-job-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.list-chip.warning {
+  background: rgba(197, 83, 69, 0.12);
+  color: #8f3128;
 }
 
 .legend-row {

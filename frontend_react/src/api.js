@@ -101,6 +101,12 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  batchAnalyze(payload) {
+    return request("/jobs/batch-analyze", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   recommend(payload) {
     return request("/jobs/recommend", {
       method: "POST",
