@@ -32,16 +32,30 @@ const DEFAULT_BLACKLIST_CHECK = {
   description: "",
 };
 
-const menuItems = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "saved", label: "Saved Jobs" },
-  { id: "applications", label: "Applications" },
-  { id: "blacklist", label: "Blacklist" },
-  { id: "statistics", label: "Statistic" },
-  { id: "profile", label: "Profile" },
-  { id: "jobs", label: "Job List" },
-  { id: "detail", label: "Job Detail" },
-  { id: "recommendation", label: "Recommendation Job" },
+const menuSections = [
+  {
+    title: "Overview",
+    items: [
+      { id: "dashboard", label: "Dashboard" },
+      { id: "statistics", label: "Statistic" },
+    ],
+  },
+  {
+    title: "Job Flow",
+    items: [
+      { id: "jobs", label: "Job List" },
+      { id: "recommendation", label: "Recommendation Job" },
+      { id: "saved", label: "Saved Jobs" },
+      { id: "applications", label: "Applications" },
+    ],
+  },
+  {
+    title: "Safety & Account",
+    items: [
+      { id: "blacklist", label: "Blacklist" },
+      { id: "profile", label: "Profile" },
+    ],
+  },
 ];
 
 export default function App() {
@@ -84,7 +98,14 @@ export default function App() {
   const [blacklistCheckResult, setBlacklistCheckResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Kết nối Flask backend để xem dữ liệu cá nhân.");
+  const [successMessage, setSuccessMessage] = useState("");
   const isAuthRoute = routePath === "/login" || routePath === "/register";
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(""), 3200);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
   useEffect(() => {
     function syncAuthRoute() {
@@ -217,6 +238,7 @@ export default function App() {
       setAccountMenuOpen(false);
       setActivePage("dashboard");
       setStatusMessage("Đăng nhập thành công. JWT đã được lưu ở localStorage.");
+      setSuccessMessage("Đăng nhập thành công.");
     } catch (error) {
       setLoginErrors({ general: error.message || "Đăng nhập thất bại." });
     } finally {
@@ -241,6 +263,7 @@ export default function App() {
       setRegisterForm({ email: "", password: "", confirmPassword: "", name: "" });
       openAuthRoute("login");
       setStatusMessage("Đăng ký thành công. Bạn có thể đăng nhập ngay.");
+      setSuccessMessage("Đăng ký thành công. Mời bạn đăng nhập.");
     } catch (error) {
       setRegisterErrors({ general: error.message || "Đăng ký thất bại." });
     } finally {
@@ -477,6 +500,10 @@ export default function App() {
   function addKeywordTag() {
     const nextKeyword = keywordInput.trim();
     if (!nextKeyword) return;
+    if (nextKeyword.length > 32 || preferences.keywords.length >= 12) {
+      setProfileErrors((current) => ({ ...current, general: "Mỗi keyword tối đa 32 ký tự và không quá 12 keyword." }));
+      return;
+    }
     if (preferences.keywords.includes(nextKeyword)) {
       setKeywordInput("");
       return;
@@ -485,6 +512,7 @@ export default function App() {
       ...current,
       keywords: [...current.keywords, nextKeyword],
     }));
+    setProfileErrors((current) => ({ ...current, general: "" }));
     setKeywordInput("");
   }
 
@@ -540,43 +568,39 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {successMessage && <div className="success-toast">{successMessage}</div>}
       <aside className="sidebar">
         <div className="sidebar-top">
-          <p className="eyebrow">JobTrust Workflow</p>
+          
           <div className="brand-lockup">
             <div className="brand-mark">JT</div>
-            <div>
-              <h1>Candidate Workspace</h1>
-              <p className="muted">Theo dõi job an toàn, lưu cơ hội tốt và quản lý tiến trình ứng tuyển.</p>
-            </div>
+         
           </div>
         </div>
 
-        <div className="user-card">
-          <strong>{token ? user?.name || preferences.name || "Người dùng" : "Guest mode"}</strong>
-          <span>{token ? user?.email || preferences.email || "No email" : "Bạn có thể vào web mà không cần đăng nhập"}</span>
-        </div>
 
-        <div className="menu-title">Navigation</div>
-        <nav className="menu">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              className={activePage === item.id ? "menu-item active" : "menu-item"}
-              onClick={() => setActivePage(item.id)}
-            >
-              <span className="menu-label">{item.label}</span>
-            </button>
-          ))}
-        </nav>
+        {menuSections.map((section) => (
+          <div key={section.title}>
+            <div className="menu-title">{section.title}</div>
+            <nav className="menu">
+              {section.items.map((item) => (
+                <button
+                  key={item.id}
+                  className={activePage === item.id ? "menu-item active" : "menu-item"}
+                  onClick={() => setActivePage(item.id)}
+                >
+                  <span className="menu-label">{item.label}</span>
+                  {item.id === "saved" && <span className="menu-badge">{savedJobs.length}</span>}
+                  {item.id === "applications" && <span className="menu-badge">{applications.length}</span>}
+                </button>
+              ))}
+            </nav>
+          </div>
+        ))}
       </aside>
 
       <main className="content">
         <section className="topbar">
-          <div className="topbar-copy">
-            <span className="eyebrow">Workspace Access</span>
-            <strong>{token ? "Đã đăng nhập" : "Guest mode"}</strong>
-          </div>
           <div className="account-area">
             <button className="account-trigger" onClick={() => (token ? setAccountMenuOpen((current) => !current) : openAuthRoute("login"))}>
               <span className="avatar-badge">{buildAvatarLabel(token ? user?.name || preferences.name : "Guest")}</span>
@@ -602,21 +626,6 @@ export default function App() {
                 </div>
               </div>
             )}
-          </div>
-        </section>
-
-        <section className="hero">
-          <div>
-            <p className="eyebrow">Candidate Journey</p>
-            <h2>Quản lý job an toàn từ dashboard, job list, job detail đến recommendation trên cùng một workspace.</h2>
-          </div>
-          <div className="hero-actions">
-            <button className="secondary-btn" onClick={() => (token ? setActivePage("profile") : openAuthRoute("login"))}>
-              {token ? "Edit profile" : "Đăng nhập"}
-            </button>
-            <button className="primary-btn" onClick={() => { loadJobs(1); token ? refreshUserData("Đã làm mới dữ liệu từ Flask backend.") : setStatusMessage("Đã làm mới dữ liệu công khai."); }}>
-              Refresh data
-            </button>
           </div>
         </section>
 
@@ -767,9 +776,14 @@ function AuthPanel({
             <h2>Đăng nhập</h2>
             <Field
               label="Email"
+              type="email"
               value={loginForm.email}
               onChange={(value) => setLoginForm({ ...loginForm, email: value })}
               error={loginErrors.email}
+              autoComplete="email"
+              maxLength={120}
+              inputMode="email"
+              required
             />
             <Field
               label="Password"
@@ -777,6 +791,10 @@ function AuthPanel({
               value={loginForm.password}
               onChange={(value) => setLoginForm({ ...loginForm, password: value })}
               error={loginErrors.password}
+              autoComplete="current-password"
+              minLength={6}
+              maxLength={72}
+              required
             />
             {loginErrors.general && <p className="error-banner">{loginErrors.general}</p>}
             <button className="primary-btn" type="submit" disabled={loading}>
@@ -791,12 +809,20 @@ function AuthPanel({
               value={registerForm.name}
               onChange={(value) => setRegisterForm({ ...registerForm, name: value })}
               error={registerErrors.name}
+              autoComplete="name"
+              maxLength={80}
+              required
             />
             <Field
               label="Email"
+              type="email"
               value={registerForm.email}
               onChange={(value) => setRegisterForm({ ...registerForm, email: value })}
               error={registerErrors.email}
+              autoComplete="email"
+              maxLength={120}
+              inputMode="email"
+              required
             />
             <Field
               label="Password"
@@ -804,6 +830,10 @@ function AuthPanel({
               value={registerForm.password}
               onChange={(value) => setRegisterForm({ ...registerForm, password: value })}
               error={registerErrors.password}
+              autoComplete="new-password"
+              minLength={6}
+              maxLength={72}
+              required
             />
             <Field
               label="Confirm password"
@@ -811,6 +841,10 @@ function AuthPanel({
               value={registerForm.confirmPassword}
               onChange={(value) => setRegisterForm({ ...registerForm, confirmPassword: value })}
               error={registerErrors.confirmPassword}
+              autoComplete="new-password"
+              minLength={6}
+              maxLength={72}
+              required
             />
             {registerErrors.general && <p className="error-banner">{registerErrors.general}</p>}
             <button className="primary-btn" type="submit" disabled={loading}>
@@ -828,11 +862,32 @@ function AuthPanel({
   );
 }
 
-function Field({ label, type = "text", value, onChange, error }) {
+function Field({
+  label,
+  type = "text",
+  value,
+  onChange,
+  error,
+  autoComplete,
+  maxLength,
+  minLength,
+  inputMode,
+  required = false,
+}) {
   return (
     <label>
       <span>{label}</span>
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} className={error ? "input-error" : ""} />
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={error ? "input-error" : ""}
+        autoComplete={autoComplete}
+        maxLength={maxLength}
+        minLength={minLength}
+        inputMode={inputMode}
+        required={required}
+      />
       {error && <small className="error-text">{error}</small>}
     </label>
   );
@@ -910,7 +965,7 @@ function DashboardPanel({ overview, stats, token, onOpenRecommendations }) {
 function JobsPanel({ jobs, total, query, risk, page, totalPages, setQuery, setRisk, onSearch, onSelectJob, onSaveJob, onApplyJob, onPrevious, onNext }) {
   return (
     <section className="panel-grid">
-      <div className="panel panel-stack">
+      <form className="panel panel-stack" onSubmit={(event) => { event.preventDefault(); onSearch(); }}>
         <div className="section-heading">
           <div>
             <h3>Job List</h3>
@@ -919,16 +974,21 @@ function JobsPanel({ jobs, total, query, risk, page, totalPages, setQuery, setRi
           <div className="metric-chip">{total} jobs</div>
         </div>
         <div className="filter-row">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm theo title, company hoặc nội dung..." />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value.slice(0, 120))}
+            placeholder="Tìm theo title, company hoặc nội dung..."
+            maxLength={120}
+          />
           <select value={risk} onChange={(event) => setRisk(event.target.value)}>
-            <option value="ALL">All risk levels</option>
-            <option value="LOW">LOW</option>
-            <option value="MEDIUM">MEDIUM</option>
-            <option value="HIGH">HIGH</option>
+            <option value="ALL">Tất cả mức rủi ro</option>
+            <option value="LOW">Thấp</option>
+            <option value="MEDIUM">Trung bình</option>
+            <option value="HIGH">Cao</option>
           </select>
-          <button className="primary-btn" onClick={onSearch}>Search</button>
+          <button className="primary-btn" type="submit">Search</button>
         </div>
-      </div>
+      </form>
 
       <div className="saved-grid">
         {jobs.map((job) => (
@@ -1096,7 +1156,7 @@ function SavedJobCard({ item, onApply, onDelete, onNoteSave }) {
   return (
     <article className="panel saved-card">
       <div className="job-card-top">
-        <span className={`pill ${(item.riskLevel || "LOW").toLowerCase()}`}>{item.riskLevel || "LOW"}</span>
+        <span className={`pill ${(item.riskLevel || "LOW").toLowerCase()}`}>{getRiskLabel(item.riskLevel)}</span>
         <strong>{Math.round(item.trustScore || 0)}% trust</strong>
       </div>
       <h4>{item.job?.title || "Untitled job"}</h4>
@@ -1104,7 +1164,7 @@ function SavedJobCard({ item, onApply, onDelete, onNoteSave }) {
       <p className="muted">{item.job?.location || "No location"} • {item.job?.salary || "No salary"}</p>
       <label>
         <span>Note</span>
-        <textarea rows="4" value={note} onChange={(event) => setNote(event.target.value)} />
+        <textarea rows="4" value={note} onChange={(event) => setNote(event.target.value.slice(0, 500))} maxLength={500} />
       </label>
       <div className="card-actions">
         <button className="secondary-btn" onClick={() => onNoteSave(item.id, note)}>
@@ -1168,7 +1228,7 @@ function ApplicationCard({ item, onUpdate, onDelete }) {
   return (
     <article className="application-card" draggable onDragStart={(event) => event.dataTransfer.setData("applicationId", String(item.id))}>
       <div className="job-card-top">
-        <span className={`pill ${(item.riskLevel || "LOW").toLowerCase()}`}>{item.riskLevel || "LOW"}</span>
+        <span className={`pill ${(item.riskLevel || "LOW").toLowerCase()}`}>{getRiskLabel(item.riskLevel)}</span>
         <strong>{Math.round(item.trustScore || 0)}%</strong>
       </div>
       <h4>{item.job?.title || "Untitled job"}</h4>
@@ -1186,7 +1246,7 @@ function ApplicationCard({ item, onUpdate, onDelete }) {
       </label>
       <label>
         <span>Notes</span>
-        <textarea rows="3" value={note} onChange={(event) => setNote(event.target.value)} />
+        <textarea rows="3" value={note} onChange={(event) => setNote(event.target.value.slice(0, 500))} maxLength={500} />
       </label>
       <label>
         <span>Rating</span>
@@ -1231,7 +1291,7 @@ function BlacklistPanel({ blacklist, input, setInput, errors, checkForm, setChec
 
         <label>
           <span>Companies</span>
-          <textarea rows="8" value={input.companiesText} onChange={(event) => setInput({ ...input, companiesText: event.target.value })} />
+          <textarea rows="8" value={input.companiesText} onChange={(event) => setInput({ ...input, companiesText: event.target.value.slice(0, 800) })} maxLength={800} />
         </label>
 
         <label>
@@ -1239,8 +1299,9 @@ function BlacklistPanel({ blacklist, input, setInput, errors, checkForm, setChec
           <textarea
             rows="6"
             value={input.emailsText}
-            onChange={(event) => setInput({ ...input, emailsText: event.target.value })}
+            onChange={(event) => setInput({ ...input, emailsText: event.target.value.slice(0, 600) })}
             className={errors.emailsText ? "input-error" : ""}
+            maxLength={600}
           />
           {errors.emailsText && <small className="error-text">{errors.emailsText}</small>}
         </label>
@@ -1250,8 +1311,9 @@ function BlacklistPanel({ blacklist, input, setInput, errors, checkForm, setChec
           <textarea
             rows="6"
             value={input.phonesText}
-            onChange={(event) => setInput({ ...input, phonesText: event.target.value })}
+            onChange={(event) => setInput({ ...input, phonesText: event.target.value.slice(0, 400) })}
             className={errors.phonesText ? "input-error" : ""}
+            maxLength={400}
           />
           {errors.phonesText && <small className="error-text">{errors.phonesText}</small>}
         </label>
@@ -1272,11 +1334,11 @@ function BlacklistPanel({ blacklist, input, setInput, errors, checkForm, setChec
           <h4>Check blacklist</h4>
           <label>
             <span>Job title</span>
-            <input value={checkForm.title} onChange={(event) => setCheckForm({ ...checkForm, title: event.target.value })} />
+            <input value={checkForm.title} onChange={(event) => setCheckForm({ ...checkForm, title: event.target.value.slice(0, 120) })} maxLength={120} />
           </label>
           <label>
             <span>Job description</span>
-            <textarea rows="6" value={checkForm.description} onChange={(event) => setCheckForm({ ...checkForm, description: event.target.value })} />
+            <textarea rows="6" value={checkForm.description} onChange={(event) => setCheckForm({ ...checkForm, description: event.target.value.slice(0, 1500) })} maxLength={1500} />
           </label>
           <button className="secondary-btn" onClick={onCheck}>
             Check
@@ -1417,8 +1479,9 @@ function ProfilePanel({
           <span>Name</span>
           <input
             value={preferences.name}
-            onChange={(event) => setPreferences((current) => ({ ...current, name: event.target.value }))}
+            onChange={(event) => setPreferences((current) => ({ ...current, name: event.target.value.slice(0, 80) }))}
             className={errors.name ? "input-error" : ""}
+            maxLength={80}
           />
           {errors.name && <small className="error-text">{errors.name}</small>}
         </label>
@@ -1434,7 +1497,7 @@ function ProfilePanel({
             <div className="tag-input-wrap">
               <input
                 value={keywordInput}
-                onChange={(event) => setKeywordInput(event.target.value)}
+                onChange={(event) => setKeywordInput(event.target.value.slice(0, 32))}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
@@ -1442,6 +1505,7 @@ function ProfilePanel({
                   }
                 }}
                 placeholder="Nhập keyword rồi bấm Enter"
+                maxLength={32}
               />
               <button className="secondary-btn" type="button" onClick={addKeywordTag}>
                 Add
@@ -1597,14 +1661,17 @@ function validateLogin(values) {
   const errors = {};
   if (!isValidEmail(values.email)) errors.email = "Email chưa hợp lệ.";
   if (!values.password) errors.password = "Vui lòng nhập password.";
+  if ((values.password || "").length > 72) errors.password = "Password không được vượt quá 72 ký tự.";
   return errors;
 }
 
 function validateRegister(values) {
   const errors = {};
   if (!values.name.trim()) errors.name = "Vui lòng nhập tên.";
+  if ((values.name || "").trim().length > 80) errors.name = "Tên không được vượt quá 80 ký tự.";
   if (!isValidEmail(values.email)) errors.email = "Email chưa hợp lệ.";
   if ((values.password || "").length < 6) errors.password = "Password phải từ 6 ký tự.";
+  if ((values.password || "").length > 72) errors.password = "Password không được vượt quá 72 ký tự.";
   if (values.confirmPassword !== values.password) errors.confirmPassword = "Confirm password chưa khớp.";
   return errors;
 }
@@ -1612,6 +1679,8 @@ function validateRegister(values) {
 function validateProfile(values) {
   const errors = {};
   if (!values.name.trim()) errors.name = "Name không được để trống.";
+  if ((values.name || "").trim().length > 80) errors.name = "Name không được vượt quá 80 ký tự.";
+  if ((values.keywords || []).length > 12) errors.general = "Tối đa 12 keyword.";
   if (!Array.isArray(values.preferredRisk) || values.preferredRisk.length === 0) {
     errors.general = "Hãy chọn ít nhất một mức rủi ro ưu tiên.";
   }
@@ -1721,4 +1790,12 @@ function buildAvatarLabel(name) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || "")
     .join("");
+}
+
+function getRiskLabel(level) {
+  return {
+    LOW: "Thấp",
+    MEDIUM: "Trung bình",
+    HIGH: "Cao",
+  }[String(level || "").toUpperCase()] || String(level || "Thấp");
 }

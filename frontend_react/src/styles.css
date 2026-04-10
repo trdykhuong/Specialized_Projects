@@ -322,15 +322,16 @@ textarea {
 }
 
 .brand-mark {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--accent) 0%, #f0a04c 100%);
   color: white;
   font-weight: 800;
+  font-size: 20px;
   letter-spacing: 0.08em;
 }
 
@@ -355,6 +356,7 @@ textarea {
 .menu {
   display: grid;
   gap: 8px;
+  margin-bottom: 10px;
   padding: 10px;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.03);
@@ -450,6 +452,20 @@ textarea {
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.66), transparent 24%);
 }
 
+.success-toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 20;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #2aa873, #1d764f);
+  color: white;
+  box-shadow: 0 20px 38px rgba(29, 118, 79, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -457,30 +473,26 @@ textarea {
   gap: 16px;
 }
 
-.topbar-copy {
-  display: grid;
-  gap: 4px;
-}
-
 .account-area {
   position: relative;
+  margin-left: auto;
 }
 
 .account-trigger {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 250px;
-  padding: 10px 12px;
+  gap: 10px;
+  min-width: 236px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 18px;
   background: rgba(255, 252, 247, 0.94);
   box-shadow: var(--shadow);
 }
 
 .avatar-badge {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -488,15 +500,21 @@ textarea {
   background: linear-gradient(135deg, var(--accent), var(--blue));
   color: white;
   font-weight: 700;
+  font-size: 13px;
+  flex: 0 0 auto;
 }
 
 .account-meta {
   display: grid;
   text-align: left;
+  min-width: 0;
 }
 
 .account-meta small {
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .account-popover {
@@ -878,6 +896,12 @@ label span {
 }
 
 @media (max-width: 760px) {
+  .success-toast {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+  }
+
   .content,
   .auth-panel,
   .auth-brand,
