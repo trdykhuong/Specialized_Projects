@@ -568,6 +568,15 @@ textarea {
   grid-template-columns: 1.1fr 0.9fr;
 }
 
+.panel-grid.double.analysis-layout {
+  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+  align-items: start;
+}
+
+.analysis-form-panel {
+  max-width: 760px;
+}
+
 .compact-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -813,6 +822,13 @@ textarea {
   gap: 12px;
 }
 
+.quick-job-card-content {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
 .user-blacklist-item.warning {
   background: rgba(197, 83, 69, 0.12);
   color: #8f3128;
@@ -853,6 +869,7 @@ textarea {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .list-chip.warning {

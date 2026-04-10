@@ -1125,8 +1125,8 @@ function AnalysisWorkspace({
       </div>
 
       {mode === "single" ? (
-        <section className="panel-grid double">
-          <div className="panel panel-stack">
+        <section className="panel-grid double analysis-layout">
+          <div className="panel panel-stack analysis-form-panel">
             <div className="detail-grid">
               <Field label="Job title" value={analysisForm.title} onChange={(value) => setAnalysisForm((current) => ({ ...current, title: value }))} maxLength={160} />
               <Field
@@ -1182,7 +1182,11 @@ function AnalysisWorkspace({
             <div className="quick-job-list">
               {jobs.map((job) => (
                 <article key={job.id} className="quick-job-card">
-                  <div>
+                  <div className="quick-job-card-content">
+                    <div className="job-card-top">
+                      <span className={`pill ${String(job.riskLevel || "LOW").toLowerCase()}`}>{getRiskLabel(job.riskLevel)}</span>
+                      <strong>{Math.round(job.trustScore || 0)}% trust</strong>
+                    </div>
                     <strong>{job.title}</strong>
                     <p className="muted">{job.companyName || "Unknown company"}</p>
                   </div>
