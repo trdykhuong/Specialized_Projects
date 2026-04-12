@@ -1,24 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, authStorage } from "./api";
-import { sampleBatchText, sampleJob } from "./mockData";
+import { sampleBatchText } from "./mockData";
 
 const APP_PREFERENCES_KEY = "jobtrust_profile_preferences";
 const USER_BLACKLIST_STORAGE_KEY = "jobtrust_user_blacklist";
 const JOB_TYPE_OPTIONS = ["Toàn thời gian", "Bán thời gian", "Remote", "Hybrid", "Thực tập", "Freelance"];
 const KANBAN_COLUMNS = [
-  { id: "saved", label: "Saved" },
   { id: "applied", label: "Applied" },
   { id: "interviewing", label: "Interviewing" },
   { id: "offered", label: "Offered" },
   { id: "rejected", label: "Rejected" },
 ];
 const STATUS_OPTIONS = [
-  { value: "saved", label: "Saved" },
   { value: "applied", label: "Applied" },
   { value: "interviewing", label: "Interviewing" },
   { value: "offered", label: "Offered" },
   { value: "rejected", label: "Rejected" },
-  { value: "withdrawn", label: "Withdrawn" },
 ];
 
 const DEFAULT_PROFILE = {
@@ -35,19 +32,19 @@ const DEFAULT_BLACKLIST_CHECK = {
 };
 
 const DEFAULT_ANALYSIS_FORM = {
-  title: sampleJob.title,
-  companyName: sampleJob.companyName,
-  description: sampleJob.description,
-  requirements: sampleJob.requirements,
-  benefits: sampleJob.benefits,
-  salary: sampleJob.salary,
-  address: sampleJob.address,
-  email: sampleJob.email,
-  phone: sampleJob.phone,
-  companySize: sampleJob.companySize,
-  experience: sampleJob.experience,
-  careerLevel: sampleJob.careerLevel,
-  jobType: sampleJob.jobType,
+  title: "",
+  companyName: "",
+  description: "",
+  requirements: "",
+  benefits: "",
+  salary: "",
+  address: "",
+  email: "",
+  phone: "",
+  companySize: "",
+  experience: "",
+  careerLevel: "",
+  jobType: "",
 };
 
 const DEFAULT_USER_BLACKLIST_FORM = {
@@ -59,7 +56,6 @@ const menuSections = [
   {
     title: "Workspace",
     items: [
-      { id: "dashboard", label: "Dashboard" },
       { id: "analysis", label: "Phân tích tin" },
       { id: "saved", label: "Saved Jobs" },
       { id: "applications", label: "Applications" },
@@ -70,7 +66,6 @@ const menuSections = [
     title: "Safety & Account",
     items: [
       { id: "blacklist", label: "Blacklist" },
-      { id: "profile", label: "Profile" },
     ],
   },
 ];
@@ -96,22 +91,21 @@ export default function App() {
   const [keywordInput, setKeywordInput] = useState("");
   const [savedJobs, setSavedJobs] = useState([]);
   const [applications, setApplications] = useState([]);
-  const [overview, setOverview] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [jobQuery, setJobQuery] = useState("");
-  const [jobRisk, setJobRisk] = useState("ALL");
   const [jobPage, setJobPage] = useState(1);
   const [jobTotalPages, setJobTotalPages] = useState(0);
   const [jobTotal, setJobTotal] = useState(0);
   const [selectedJob, setSelectedJob] = useState(null);
   const [jobAnalysis, setJobAnalysis] = useState(null);
   const [detailBackPage, setDetailBackPage] = useState("analysis");
+  const [detailViewMode, setDetailViewMode] = useState("analysis");
   const [analysisMode, setAnalysisMode] = useState("single");
   const [analysisForm, setAnalysisForm] = useState(DEFAULT_ANALYSIS_FORM);
+  const [analysisFormSource, setAnalysisFormSource] = useState("manual");
   const [batchText, setBatchText] = useState(sampleBatchText);
   const [batchAnalysis, setBatchAnalysis] = useState(null);
   const [stats, setStats] = useState(null);
-  const [riskSummary, setRiskSummary] = useState(null);
   const [blacklist, setBlacklist] = useState({ companies: [], emails: [], phones: [] });
   const [blacklistCheckForm, setBlacklistCheckForm] = useState(DEFAULT_BLACKLIST_CHECK);
   const [blacklistCheckResult, setBlacklistCheckResult] = useState(null);
@@ -119,6 +113,7 @@ export default function App() {
   const [userBlacklistLoadedKey, setUserBlacklistLoadedKey] = useState("");
   const [userBlacklistForm, setUserBlacklistForm] = useState(DEFAULT_USER_BLACKLIST_FORM);
   const [loading, setLoading] = useState(false);
+  const [analysisRequest, setAnalysisRequest] = useState({ pending: false, context: "", error: "", message: "" });
   const [statusMessage, setStatusMessage] = useState("Kết nối Flask backend để xem dữ liệu cá nhân.");
   const [successMessage, setSuccessMessage] = useState("");
   const isAuthRoute = routePath === "/login" || routePath === "/register";
@@ -185,16 +180,6 @@ export default function App() {
       }
 
       try {
-        const overviewData = await api.getOverview();
-        if (ignore) return;
-        setOverview(overviewData);
-      } catch (error) {
-        if (!ignore) {
-          setStatusMessage("Không tải được dữ liệu tổng quan từ Flask backend.");
-        }
-      }
-
-      try {
         const jobsData = await api.getJobs({ page: 1, pageSize: 9 });
         if (ignore) return;
         setJobs(jobsData.items || []);
@@ -202,9 +187,6 @@ export default function App() {
         setJobTotalPages(jobsData.totalPages || 0);
         setJobPage(jobsData.page || 1);
         setSelectedJob((current) => current || jobsData.items?.[0] || null);
-        if (!analysisForm.title && jobsData.items?.[0]) {
-          setAnalysisForm(mapJobToAnalysisForm(jobsData.items[0]));
-        }
       } catch (error) {
         if (!ignore) {
           setStatusMessage("Không tải được danh sách job từ Flask backend.");
@@ -217,12 +199,11 @@ export default function App() {
 
       setLoading(true);
       try {
-        const [profile, savedData, applicationsData, statsData, riskData] = await Promise.all([
+        const [profile, savedData, applicationsData, statsData] = await Promise.all([
           api.getProfile(),
           api.getSavedJobs(),
           api.getApplications({ pageSize: 100 }),
           api.getStatistics(),
-          api.getRiskSummary(),
         ]);
         if (ignore) return;
         setUser(profile);
@@ -230,7 +211,6 @@ export default function App() {
         setSavedJobs(savedData.items || []);
         setApplications(applicationsData.items || []);
         setStats(statsData);
-        setRiskSummary(riskData);
         setStatusMessage("Dữ liệu cá nhân đã đồng bộ từ backend Flask.");
       } catch (error) {
         if (ignore) return;
@@ -251,12 +231,13 @@ export default function App() {
     return () => {
       ignore = true;
     };
-  }, [token, analysisForm.title]);
+  }, [token]);
 
   const applicationGroups = useMemo(() => {
     const groups = Object.fromEntries(KANBAN_COLUMNS.map((column) => [column.id, []]));
     applications.forEach((application) => {
-      const key = groups[application.status] ? application.status : "rejected";
+      const normalizedStatus = application.status === "saved" ? "applied" : application.status;
+      const key = groups[normalizedStatus] ? normalizedStatus : "rejected";
       groups[key].push(application);
     });
     return groups;
@@ -324,7 +305,6 @@ export default function App() {
     setSavedJobs([]);
     setApplications([]);
     setStats(null);
-    setRiskSummary(null);
     setActivePage("analysis");
     setStatusMessage("Bạn đang ở chế độ guest.");
     setAccountMenuOpen(false);
@@ -333,24 +313,22 @@ export default function App() {
 
   async function refreshUserData(message) {
     if (!token) return;
-    const [savedData, applicationsData, statsData, riskData] = await Promise.all([
+    const [savedData, applicationsData, statsData] = await Promise.all([
       api.getSavedJobs(),
       api.getApplications({ pageSize: 100 }),
       api.getStatistics(),
-      api.getRiskSummary(),
     ]);
     setSavedJobs(savedData.items || []);
     setApplications(applicationsData.items || []);
     setStats(statsData);
-    setRiskSummary(riskData);
     if (message) {
       setStatusMessage(message);
     }
   }
 
-  async function loadJobs(page = 1, query = jobQuery, risk = jobRisk) {
+  async function loadJobs(page = 1, query = jobQuery) {
     try {
-      const data = await api.getJobs({ page, pageSize: 9, query, risk });
+      const data = await api.getJobs({ page, pageSize: 9, query });
       setJobs(data.items || []);
       setJobPage(data.page || 1);
       setJobTotal(data.total || 0);
@@ -370,37 +348,99 @@ export default function App() {
 
   async function handleAnalyzeSelectedJob() {
     if (!selectedJob) return;
+    setAnalysisRequest({
+      pending: true,
+      context: "detail",
+      error: "",
+      message: "Đang phân tích tin tuyển dụng. Vui lòng chờ trong giây lát...",
+    });
     try {
       const payload = mapJobToAnalysisPayload(selectedJob);
-      const result = await api.analyzeJob(payload);
+      const result = enrichAnalysisResult(await api.analyzeJob(payload), selectedJob, blacklist, userBlacklist);
       setJobAnalysis(result);
       setActivePage("detail");
+      setAnalysisRequest({
+        pending: false,
+        context: "detail",
+        error: "",
+        message: "Phân tích hoàn tất. Đã cập nhật điểm rủi ro và mức độ nguy hiểm.",
+      });
       setStatusMessage("Đã phân tích độ uy tín cho job đang chọn.");
     } catch (error) {
+      setAnalysisRequest({
+        pending: false,
+        context: "detail",
+        error: error.message || "Không phân tích được job. Vui lòng kiểm tra dữ liệu đầu vào rồi thử lại.",
+        message: "",
+      });
       setStatusMessage(error.message || "Không phân tích được job.");
     }
   }
 
   async function handleAnalyzeSingle() {
+    setAnalysisRequest({
+      pending: true,
+      context: "single",
+      error: "",
+      message: "Đang gửi dữ liệu để phân tích. Hệ thống sẽ trả về điểm rủi ro ngay khi hoàn tất...",
+    });
     try {
-      const result = await api.analyzeJob(analysisForm);
-      setSelectedJob(result.job || analysisForm);
+      const result = enrichAnalysisResult(await api.analyzeJob(analysisForm), analysisForm, blacklist, userBlacklist);
+      let detailJob = result.job || analysisForm;
+      if (analysisFormSource === "manual") {
+        const createdJob = await api.createJob({
+          ...mapJobToAnalysisPayload(analysisForm),
+          source: "manual",
+        });
+        detailJob = { ...detailJob, ...createdJob };
+      }
+      setSelectedJob(detailJob);
       setJobAnalysis(result);
       setDetailBackPage("analysis");
       setActivePage("detail");
+      setAnalysisRequest({
+        pending: false,
+        context: "single",
+        error: "",
+        message: "Phân tích hoàn tất. Kết quả rủi ro đã sẵn sàng.",
+      });
       setStatusMessage("Đã phân tích 1 tin tuyển dụng.");
     } catch (error) {
+      setAnalysisRequest({
+        pending: false,
+        context: "single",
+        error: error.message || "Phân tích thất bại. Vui lòng kiểm tra mô tả, email hoặc thông tin công ty.",
+        message: "",
+      });
       setStatusMessage(error.message || "Không phân tích được tin tuyển dụng.");
     }
   }
 
   async function handleAnalyzeBatch() {
+    setAnalysisRequest({
+      pending: true,
+      context: "batch",
+      error: "",
+      message: "Đang tách và phân tích danh sách tin tuyển dụng. Quá trình này có thể mất thêm chút thời gian...",
+    });
     try {
       const result = await api.batchAnalyze({ rawText: batchText });
       setBatchAnalysis(result);
       setAnalysisMode("batch");
+      setAnalysisRequest({
+        pending: false,
+        context: "batch",
+        error: "",
+        message: "Đã phân tích xong danh sách tin tuyển dụng.",
+      });
       setStatusMessage("Đã phân tích nhiều tin tuyển dụng.");
     } catch (error) {
+      setAnalysisRequest({
+        pending: false,
+        context: "batch",
+        error: error.message || "Không phân tích được danh sách tin. Hãy thử tách mỗi tin bằng một dòng trống.",
+        message: "",
+      });
       setStatusMessage(error.message || "Không phân tích được danh sách tin.");
     }
   }
@@ -569,31 +609,44 @@ export default function App() {
   }
 
   function openJobDetail(job, options = {}) {
-    const { backPage = "analysis", analysis = null } = options;
+    const { backPage = "analysis", analysis = null, viewMode = "analysis" } = options;
     setSelectedJob(job);
-    if (analysis) {
-      setJobAnalysis(analysis);
-    }
+    setJobAnalysis(analysis || null);
     setDetailBackPage(backPage);
+    setDetailViewMode(viewMode);
     setActivePage("detail");
   }
 
   function handlePickQuickJob(job) {
     setAnalysisForm(mapJobToAnalysisForm(job));
+    setAnalysisFormSource("existing");
     setSelectedJob(job);
     setStatusMessage("Đã đưa tin tuyển dụng vào form phân tích.");
   }
 
-  function handleOpenApplicationJob(item) {
-    openJobDetail(
-      {
-        ...item.job,
-        id: item.jobId || item.job?.id || item.id,
-        riskLevel: item.riskLevel,
-        trustScore: item.trustScore,
-      },
-      { backPage: "applications" }
-    );
+  async function handleOpenApplicationJob(item) {
+    const fallbackJob = {
+      ...item.job,
+      id: item.jobId || item.job?.id || item.id,
+    };
+
+    if (item.jobId) {
+      try {
+        const fullJob = await api.getJob(item.jobId);
+        openJobDetail(
+          {
+            ...fallbackJob,
+            ...fullJob,
+          },
+          { backPage: "applications", viewMode: "form" }
+        );
+        return;
+      } catch (error) {
+        // Fall back to stored snapshot if the dataset record is unavailable.
+      }
+    }
+
+    openJobDetail(fallbackJob, { backPage: "applications", viewMode: "form" });
   }
 
   function addKeywordTag() {
@@ -725,9 +778,6 @@ export default function App() {
                     <strong>{user?.name || preferences.name || "Người dùng"}</strong>
                     <span>{user?.email || preferences.email || "No email"}</span>
                   </div>
-                  <button className="secondary-btn full-width" onClick={() => { navigateToPage("profile"); setAccountMenuOpen(false); }}>
-                    Mở profile
-                  </button>
                   <button className="ghost-btn full-width" onClick={() => { handleLogout(); setAccountMenuOpen(false); }}>
                     Logout
                   </button>
@@ -737,7 +787,6 @@ export default function App() {
           </div>
         </section>
 
-        {activePage === "dashboard" && <DashboardPanel overview={overview} stats={stats} token={Boolean(token)} onOpenRecommendations={() => setActivePage("analysis")} />}
         {activePage === "analysis" && (
           <AnalysisWorkspace
             mode={analysisMode}
@@ -745,6 +794,7 @@ export default function App() {
             analysisForm={analysisForm}
             setAnalysisForm={setAnalysisForm}
             onAnalyzeSingle={handleAnalyzeSingle}
+            analysisRequest={analysisRequest}
             batchText={batchText}
             setBatchText={setBatchText}
             batchAnalysis={batchAnalysis}
@@ -752,14 +802,12 @@ export default function App() {
             jobs={jobs}
             total={jobTotal}
             query={jobQuery}
-            risk={jobRisk}
             page={jobPage}
             totalPages={jobTotalPages}
             setQuery={setJobQuery}
-            setRisk={setJobRisk}
-            onSearch={() => loadJobs(1, jobQuery, jobRisk)}
-            onPrevious={() => loadJobs(Math.max(1, jobPage - 1), jobQuery, jobRisk)}
-            onNext={() => loadJobs(Math.min(jobTotalPages || 1, jobPage + 1), jobQuery, jobRisk)}
+            onSearch={() => loadJobs(1, jobQuery)}
+            onPrevious={() => loadJobs(Math.max(1, jobPage - 1), jobQuery)}
+            onNext={() => loadJobs(Math.min(jobTotalPages || 1, jobPage + 1), jobQuery)}
             onPickJob={handlePickQuickJob}
             onOpenJob={(job, analysis) => openJobDetail(job, { backPage: "analysis", analysis })}
             onSaveJob={handleSaveJob}
@@ -797,11 +845,7 @@ export default function App() {
         {activePage === "statistics" && (
           <StatisticsPanel
             stats={stats}
-            riskSummary={riskSummary}
             token={Boolean(token)}
-            savedJobs={savedJobs}
-            applications={applications}
-            userBlacklist={userBlacklist}
           />
         )}
         {activePage === "profile" && (
@@ -825,6 +869,10 @@ export default function App() {
           <JobDetailPanel
             job={selectedJob}
             analysis={jobAnalysis}
+            viewMode={detailViewMode}
+            analysisRequest={analysisRequest}
+            systemBlacklist={blacklist}
+            userBlacklist={userBlacklist}
             onBack={() => setActivePage(detailBackPage)}
             onAnalyze={handleAnalyzeSelectedJob}
             onSaveJob={handleSaveJob}
@@ -1085,6 +1133,7 @@ function AnalysisWorkspace({
   analysisForm,
   setAnalysisForm,
   onAnalyzeSingle,
+  analysisRequest,
   batchText,
   setBatchText,
   batchAnalysis,
@@ -1092,11 +1141,9 @@ function AnalysisWorkspace({
   jobs,
   total,
   query,
-  risk,
   page,
   totalPages,
   setQuery,
-  setRisk,
   onSearch,
   onPrevious,
   onNext,
@@ -1105,6 +1152,13 @@ function AnalysisWorkspace({
   onSaveJob,
   onApplyJob,
 }) {
+  const singleAnalyzePending = analysisRequest.pending && analysisRequest.context === "single";
+  const batchAnalyzePending = analysisRequest.pending && analysisRequest.context === "batch";
+  const singleAnalyzeError = !analysisRequest.pending && analysisRequest.context === "single" ? analysisRequest.error : "";
+  const batchAnalyzeError = !analysisRequest.pending && analysisRequest.context === "batch" ? analysisRequest.error : "";
+  const singleAnalyzeMessage = !singleAnalyzeError && analysisRequest.context === "single" ? analysisRequest.message : "";
+  const batchAnalyzeMessage = !batchAnalyzeError && analysisRequest.context === "batch" ? analysisRequest.message : "";
+
   return (
     <section className="panel-grid">
       <div className="panel panel-stack">
@@ -1127,6 +1181,8 @@ function AnalysisWorkspace({
       {mode === "single" ? (
         <section className="panel-grid double analysis-layout">
           <div className="panel panel-stack analysis-form-panel">
+            {singleAnalyzeError && <div className="error-banner">{singleAnalyzeError}</div>}
+            {singleAnalyzeMessage && <div className={singleAnalyzePending ? "status-banner pending" : "status-banner success"}>{singleAnalyzeMessage}</div>}
             <div className="detail-grid">
               <Field label="Job title" value={analysisForm.title} onChange={(value) => setAnalysisForm((current) => ({ ...current, title: value }))} maxLength={160} />
               <Field
@@ -1149,8 +1205,8 @@ function AnalysisWorkspace({
               <textarea rows="4" value={analysisForm.requirements} onChange={(event) => setAnalysisForm((current) => ({ ...current, requirements: event.target.value.slice(0, 1800) }))} maxLength={1800} />
             </label>
             <div className="card-actions">
-              <button className="primary-btn" type="button" onClick={onAnalyzeSingle}>
-                Phân tích tin này
+              <button className="primary-btn" type="button" onClick={onAnalyzeSingle} disabled={singleAnalyzePending}>
+                {singleAnalyzePending ? "Đang phân tích..." : "Phân tích tin này"}
               </button>
               <button className="secondary-btn" type="button" onClick={() => onSaveJob(analysisForm)}>
                 Save job
@@ -1171,24 +1227,15 @@ function AnalysisWorkspace({
             </div>
             <form className="filter-row" onSubmit={(event) => { event.preventDefault(); onSearch(); }}>
               <input value={query} onChange={(event) => setQuery(event.target.value.slice(0, 120))} placeholder="Tìm theo title hoặc company..." maxLength={120} />
-              <select value={risk} onChange={(event) => setRisk(event.target.value)}>
-                <option value="ALL">Tất cả mức rủi ro</option>
-                <option value="LOW">Thấp</option>
-                <option value="MEDIUM">Trung bình</option>
-                <option value="HIGH">Cao</option>
-              </select>
               <button className="primary-btn" type="submit">Tìm</button>
             </form>
             <div className="quick-job-list">
               {jobs.map((job) => (
                 <article key={job.id} className="quick-job-card">
                   <div className="quick-job-card-content">
-                    <div className="job-card-top">
-                      <span className={`pill ${String(job.riskLevel || "LOW").toLowerCase()}`}>{getRiskLabel(job.riskLevel)}</span>
-                      <strong>{Math.round(job.trustScore || 0)}% trust</strong>
-                    </div>
                     <strong>{job.title}</strong>
                     <p className="muted">{job.companyName || "Unknown company"}</p>
+                    <p className="muted">{job.location || "Toàn quốc"} • {job.salary || "Đang cập nhật"}</p>
                   </div>
                   <div className="quick-job-actions">
                     <button className="secondary-btn" type="button" onClick={() => onPickJob(job)}>Đưa vào form</button>
@@ -1211,9 +1258,11 @@ function AnalysisWorkspace({
               <h3>Dán nhiều tin tuyển dụng</h3>
               <p className="muted">Mỗi tin cách nhau bằng một dòng trống. Backend sẽ tự parse rồi phân tích hàng loạt.</p>
             </div>
+            {batchAnalyzeError && <div className="error-banner">{batchAnalyzeError}</div>}
+            {batchAnalyzeMessage && <div className={batchAnalyzePending ? "status-banner pending" : "status-banner success"}>{batchAnalyzeMessage}</div>}
             <textarea rows="20" value={batchText} onChange={(event) => setBatchText(event.target.value.slice(0, 12000))} maxLength={12000} />
-            <button className="primary-btn" type="button" onClick={onAnalyzeBatch}>
-              Phân tích nhiều tin
+            <button className="primary-btn" type="button" onClick={onAnalyzeBatch} disabled={batchAnalyzePending}>
+              {batchAnalyzePending ? "Đang phân tích..." : "Phân tích nhiều tin"}
             </button>
           </div>
 
@@ -1224,9 +1273,7 @@ function AnalysisWorkspace({
               <>
                 <div className="summary-grid">
                   <StatCard title="Tổng tin" value={batchAnalysis.summary?.total || 0} accent="blue" />
-                  <StatCard title="Trust TB" value={`${batchAnalysis.summary?.averageTrustScore || 0}%`} accent="green" />
-                  <StatCard title="Thấp" value={batchAnalysis.summary?.riskLevels?.LOW || 0} accent="amber" />
-                  <StatCard title="Cao" value={batchAnalysis.summary?.riskLevels?.HIGH || 0} accent="red" />
+                  <StatCard title="Tách được" value={batchAnalysis.summary?.parsedFromText || 0} accent="green" />
                 </div>
                 {(batchAnalysis.parsingNotes || []).length > 0 && (
                   <div className="result-box suspicious">
@@ -1238,12 +1285,9 @@ function AnalysisWorkspace({
                 <div className="batch-result-list">
                   {(batchAnalysis.items || []).map((item, index) => (
                     <article key={`${item.job?.title || "job"}-${index}`} className="batch-result-card">
-                      <div className="job-card-top">
-                        <span className={`pill ${(item.result?.riskLevel || "LOW").toLowerCase()}`}>{item.result?.riskLabel || item.result?.riskLevel}</span>
-                        <strong>{Math.round(item.result?.trustScore || 0)}% trust</strong>
-                      </div>
                       <h4>{item.job?.title || "Untitled job"}</h4>
                       <p>{item.job?.companyName || "Unknown company"}</p>
+                      <p className="muted">{item.job?.address || "Chưa có địa chỉ"} • {item.job?.salary || "Đang cập nhật"}</p>
                       <div className="card-actions">
                         <button className="secondary-btn" type="button" onClick={() => onOpenJob(item.job, item)}>Chi tiết</button>
                         <button className="ghost-btn" type="button" onClick={() => onSaveJob(item.job)}>Save</button>
@@ -1261,13 +1305,46 @@ function AnalysisWorkspace({
   );
 }
 
-function JobDetailPanel({ job, analysis, onBack, onAnalyze, onSaveJob, onApplyJob }) {
+function JobDetailPanel({ job, analysis, viewMode = "analysis", analysisRequest, systemBlacklist, userBlacklist, onBack, onAnalyze, onSaveJob, onApplyJob }) {
   if (!job) {
     return <section className="panel">Hãy chọn một job từ Job List để xem chi tiết.</section>;
   }
 
+  const normalizedJob = normalizeJobRecord(job);
+  const analysisWithBlacklist = enrichAnalysisResult(analysis, normalizedJob, systemBlacklist, userBlacklist);
+  const detailAnalyzePending = analysisRequest.pending && analysisRequest.context === "detail";
+  const detailAnalyzeError = !analysisRequest.pending && analysisRequest.context === "detail" ? analysisRequest.error : "";
+  const detailAnalyzeMessage = !detailAnalyzeError && analysisRequest.context === "detail" ? analysisRequest.message : "";
+  const showAnalysisPanel =
+    viewMode === "analysis" && Boolean(analysisWithBlacklist || detailAnalyzePending || detailAnalyzeError || detailAnalyzeMessage);
+  const analysisSummary = analysisWithBlacklist ? buildAnalysisSummary(analysisWithBlacklist) : null;
+  const layoutClassName = showAnalysisPanel ? "panel-grid double job-detail-layout" : "panel-grid job-detail-layout";
+  const detailFields = [
+    { label: "Job title", value: normalizedJob.title, type: "field" },
+    { label: "Tên công ty", value: normalizedJob.companyName, type: "field" },
+    { label: "Mức lương", value: normalizedJob.salary, type: "field" },
+    { label: "Địa chỉ", value: normalizedJob.address || normalizedJob.location, type: "field" },
+    { label: "Email", value: normalizedJob.email, type: "field" },
+    { label: "Số điện thoại", value: normalizedJob.phone, type: "field" },
+    { label: "Mô tả", value: normalizedJob.description, type: "textarea", rows: 7 },
+    { label: "Yêu cầu", value: normalizedJob.requirements, type: "textarea", rows: 5 },
+    { label: "Phúc lợi", value: normalizedJob.benefits, type: "textarea", rows: 5 },
+  ];
+  const metaFields = [
+    { label: "Company Overview", value: normalizedJob.companyOverview, multiline: true, longText: true },
+    { label: "Company Size", value: normalizedJob.companySize },
+    { label: "Company Address", value: normalizedJob.companyAddress },
+    { label: "Job Type", value: normalizedJob.jobType },
+    { label: "Gender", value: normalizedJob.gender },
+    { label: "Number Cadidate", value: normalizedJob.candidates },
+    { label: "Career Level", value: normalizedJob.careerLevel },
+    { label: "Years of Experience", value: normalizedJob.experience },
+    { label: "Submission Deadline", value: normalizedJob.submissionDeadline },
+    { label: "Industry", value: normalizedJob.industry },
+  ];
+
   return (
-    <section className="panel-grid double">
+    <section className={layoutClassName}>
       <div className="panel panel-stack">
         <div className="section-heading">
           <div>
@@ -1276,52 +1353,118 @@ function JobDetailPanel({ job, analysis, onBack, onAnalyze, onSaveJob, onApplyJo
           </div>
           <button className="secondary-btn" onClick={onBack}>Back to list</button>
         </div>
-        <div className="detail-grid">
-          <DetailItem label="Title" value={job.title} />
-          <DetailItem label="Company" value={job.companyName || "Unknown"} />
-          <DetailItem label="Location" value={job.location || "Toàn quốc"} />
-          <DetailItem label="Salary" value={job.salary || "Đang cập nhật"} />
-          <DetailItem label="Risk level" value={job.riskLabel || job.riskLevel} />
-          <DetailItem label="Trust score" value={`${Math.round(job.trustScore || 0)}%`} />
-        </div>
-        <div className="card-actions">
-          <button className="secondary-btn" onClick={() => onSaveJob(job)}>Save</button>
-          <button className="ghost-btn" onClick={() => onApplyJob(job)}>Apply</button>
-          <button className="primary-btn" onClick={onAnalyze}>Analyze</button>
-        </div>
-      </div>
-
-      <div className="panel panel-stack">
-        <h3>Analysis</h3>
-        {!analysis && <p className="muted">Chưa có kết quả phân tích. Bấm Analyze để xem risk score, cảnh báo và blacklist match.</p>}
-        {analysis && (
+        {detailAnalyzeError && <div className="error-banner">{detailAnalyzeError}</div>}
+        {detailAnalyzeMessage && <div className={detailAnalyzePending ? "status-banner pending" : "status-banner success"}>{detailAnalyzeMessage}</div>}
+        {viewMode === "form" ? (
           <>
-            <div className="stats-grid compact-grid">
-              <StatCard title="Risk score" value={`${analysis.result?.riskScore || 0}%`} accent="red" />
-              <StatCard title="Trust score" value={`${analysis.result?.trustScore || 0}%`} accent="green" />
+            <div className="detail-grid">
+              {detailFields.slice(0, 6).map((field) => (
+                <StaticField key={field.label} label={field.label} value={field.value} />
+              ))}
             </div>
-            <div className="metric-list">
-              <div className="metric-row">
-                <span>Decision</span>
-                <strong>{analysis.result?.decision}</strong>
-              </div>
-              <div className="metric-row">
-                <span>Blacklist</span>
-                <strong>{analysis.blacklist?.hasMatch ? "Matched" : "Safe"}</strong>
-              </div>
+            {detailFields.slice(6).map((field) => (
+              <StaticTextarea key={field.label} label={field.label} value={field.value} rows={field.rows} />
+            ))}
+            <div className="detail-grid detail-grid-job">
+              {metaFields.map((field) => (
+                <DetailItem
+                  key={field.label}
+                  label={field.label}
+                  value={field.value}
+                  multiline={field.multiline}
+                  longText={field.longText}
+                />
+              ))}
             </div>
-            <div className="detail-block">
-              <h4>Warning signals</h4>
-              {(analysis.signals || []).length === 0 && <p className="muted">Chưa ghi nhận tín hiệu rủi ro rõ ràng.</p>}
-              <ul>
-                {(analysis.signals || []).map((signal) => (
-                  <li key={signal}>{signal}</li>
-                ))}
-              </ul>
+            <div className="card-actions">
+              <button className="secondary-btn" onClick={() => onSaveJob(job)}>Save</button>
+              <button className="ghost-btn" onClick={() => onApplyJob(job)}>Apply</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="detail-grid detail-grid-job">
+              {metaFields.concat(detailFields.map((field) => ({
+                label: field.label,
+                value: field.value,
+                multiline: field.type === "textarea",
+                longText: field.type === "textarea",
+              }))).map((field) => (
+                <DetailItem
+                  key={field.label}
+                  label={field.label}
+                  value={field.value}
+                  multiline={field.multiline}
+                  longText={field.longText}
+                />
+              ))}
+            </div>
+            <div className="card-actions">
+              <button className="secondary-btn" onClick={() => onSaveJob(job)}>Save</button>
+              <button className="ghost-btn" onClick={() => onApplyJob(job)}>Apply</button>
+              <button className="primary-btn" onClick={onAnalyze} disabled={detailAnalyzePending}>
+                {detailAnalyzePending ? "Đang phân tích..." : "Analyze"}
+              </button>
             </div>
           </>
         )}
       </div>
+
+      {showAnalysisPanel && (
+        <div className="panel panel-stack">
+          <h3>Analysis</h3>
+          {!analysisWithBlacklist && <p className="muted">Chưa có kết quả phân tích. Bấm Analyze nếu bạn muốn xem cảnh báo nội dung và đối chiếu blacklist.</p>}
+          {analysisWithBlacklist && (
+            <>
+              <div className="analysis-score-grid">
+                <div className="score-card risk">
+                  <span>Risk score</span>
+                  <strong>{analysisSummary.riskScore}</strong>
+                </div>
+                <div className="score-card trust">
+                  <span>Trust score</span>
+                  <strong>{analysisSummary.trustScore}</strong>
+                </div>
+              </div>
+              <div className="metric-list">
+                <div className="metric-row">
+                  <span>Mức độ nguy hiểm</span>
+                  <strong>{analysisSummary.riskLevel}</strong>
+                </div>
+                <div className="metric-row">
+                  <span>Decision</span>
+                  <strong>{analysisSummary.decision}</strong>
+                </div>
+                <div className="metric-row">
+                  <span>Blacklist chung</span>
+                  <strong>{analysisWithBlacklist.blacklist?.system?.hasMatch ? "Matched" : "Safe"}</strong>
+                </div>
+                <div className="metric-row">
+                  <span>Blacklist cá nhân</span>
+                  <strong>{analysisWithBlacklist.blacklist?.personal?.hasMatch ? "Matched" : "Safe"}</strong>
+                </div>
+                <div className="metric-row">
+                  <span>Đối chiếu tổng</span>
+                  <strong>{analysisWithBlacklist.blacklist?.hasMatch ? "Matched" : "Safe"}</strong>
+                </div>
+                <div className="metric-row">
+                  <span>Số cảnh báo</span>
+                  <strong>{analysisWithBlacklist.signals?.length || 0}</strong>
+                </div>
+              </div>
+              <div className="detail-block">
+                <h4>Warning signals</h4>
+                {(analysisWithBlacklist.signals || []).length === 0 && <p className="muted">Chưa ghi nhận tín hiệu rủi ro rõ ràng.</p>}
+                <ul>
+                  {(analysisWithBlacklist.signals || []).map((signal) => (
+                    <li key={signal}>{signal}</li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -1359,10 +1502,6 @@ function SavedJobCard({ item, onApply, onDelete, onNoteSave }) {
 
   return (
     <article className="panel saved-card">
-      <div className="job-card-top">
-        <span className={`pill ${(item.riskLevel || "LOW").toLowerCase()}`}>{getRiskLabel(item.riskLevel)}</span>
-        <strong>{Math.round(item.trustScore || 0)}% trust</strong>
-      </div>
       <h4>{item.job?.title || "Untitled job"}</h4>
       <p>{item.job?.companyName || "Unknown company"}</p>
       <p className="muted">{item.job?.location || "No location"} • {item.job?.salary || "No salary"}</p>
@@ -1426,11 +1565,8 @@ function ApplicationCard({ item, onDelete, onOpenJob }) {
       onDragStart={(event) => event.dataTransfer.setData("applicationId", String(item.id))}
       onClick={() => onOpenJob(item)}
     >
-      <div className="job-card-top">
-        <span className={`pill ${(item.riskLevel || "LOW").toLowerCase()}`}>{getRiskLabel(item.riskLevel)}</span>
-        <strong>{Math.round(item.trustScore || 0)}%</strong>
-      </div>
       <h4>{item.job?.title || "Untitled job"}</h4>
+      <p className="muted">{item.job?.companyName || "Unknown company"}</p>
       <div className="card-actions">
         <button className="secondary-btn" type="button" onClick={(event) => { event.stopPropagation(); onOpenJob(item); }}>
           Detail
@@ -1580,7 +1716,7 @@ function BlacklistPanel({
   );
 }
 
-function StatisticsPanel({ stats, riskSummary, token }) {
+function StatisticsPanel({ stats, token }) {
   if (!token) {
     return (
       <section className="panel panel-stack">
@@ -1611,31 +1747,16 @@ function StatisticsPanel({ stats, riskSummary, token }) {
       <div className="stats-grid">
         <StatCard title="Applied jobs" value={stats.total} accent="blue" />
         <StatCard title="Saved jobs" value={stats.savedCount} accent="amber" />
-        <StatCard title="Avg trust" value={stats.averageTrustScore} accent="green" />
+        <StatCard title="Interviewing" value={interviewCount} accent="green" />
         <StatCard title="Success rate" value={`${stats.successRate}%`} accent="red" />
       </div>
 
-      <div className="panel-grid double">
-        <div className="panel">
-          <h3>Status distribution</h3>
-          <div className="bar-list">
-            {(stats.statusDistribution || []).map((item) => (
-              <BarRow key={item.status} label={item.label} value={item.count} max={stats.total || 1} />
-            ))}
-          </div>
-        </div>
-
-        <div className="panel">
-          <h3>Risk distribution</h3>
-          <div className="pie-legend">
-            {(stats.riskDistribution || []).map((item) => (
-              <div key={item.riskLevel} className="legend-row">
-                <span className={`legend-dot ${(item.riskLevel || "").toLowerCase()}`} />
-                <span>{item.label}</span>
-                <strong>{item.count}</strong>
-              </div>
-            ))}
-          </div>
+      <div className="panel">
+        <h3>Status distribution</h3>
+        <div className="bar-list">
+          {(stats.statusDistribution || []).map((item) => (
+            <BarRow key={item.status} label={item.label} value={item.count} max={stats.total || 1} />
+          ))}
         </div>
       </div>
 
@@ -1660,10 +1781,6 @@ function StatisticsPanel({ stats, riskSummary, token }) {
             <div className="metric-row">
               <span>Interview → Offer</span>
               <strong>{interviewToOffer}%</strong>
-            </div>
-            <div className="metric-row">
-              <span>High risk applied</span>
-              <strong>{riskSummary?.highRiskApplied || 0}</strong>
             </div>
           </div>
         </div>
@@ -1855,12 +1972,33 @@ function StatCard({ title, value, accent }) {
   );
 }
 
-function DetailItem({ label, value }) {
+function DetailItem({ label, value, multiline = false, longText = false }) {
+  const displayValue = value === undefined || value === null || value === "" ? "Đang cập nhật" : value;
   return (
-    <div className="detail-item">
+    <div className={`detail-item${multiline ? " detail-item-wide" : ""}${longText ? " detail-item-rich" : ""}`}>
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong>{displayValue}</strong>
     </div>
+  );
+}
+
+function StaticField({ label, value }) {
+  const displayValue = value === undefined || value === null || value === "" ? "Đang cập nhật" : value;
+  return (
+    <label className="static-input">
+      <span>{label}</span>
+      <div className="static-input-box">{displayValue}</div>
+    </label>
+  );
+}
+
+function StaticTextarea({ label, value, rows = 5 }) {
+  const displayValue = value === undefined || value === null || value === "" ? "Đang cập nhật" : value;
+  return (
+    <label className="static-textarea">
+      <span>{label}</span>
+      <div className="static-textarea-box" style={{ minHeight: `${rows * 24 + 40}px` }}>{displayValue}</div>
+    </label>
   );
 }
 
@@ -1988,48 +2126,227 @@ function saveUserBlacklist(ownerKey, items) {
 }
 
 function mapJobToAnalysisForm(job = {}) {
+  const normalizedJob = normalizeJobRecord(job);
   return {
-    title: job.title || "",
-    companyName: job.companyName || "",
-    description: job.description || "",
-    requirements: job.requirements || "",
-    benefits: job.benefits || "",
-    salary: job.salary || "",
-    address: job.address || job.location || "",
-    email: job.email || "",
-    phone: job.phone || "",
-    companySize: job.companySize || "",
-    experience: job.experience || "",
-    careerLevel: job.careerLevel || "",
-    jobType: job.jobType || "",
+    title: normalizedJob.title || "",
+    companyName: normalizedJob.companyName || "",
+    description: normalizedJob.description || "",
+    requirements: normalizedJob.requirements || "",
+    benefits: normalizedJob.benefits || "",
+    salary: normalizedJob.salary || "",
+    address: normalizedJob.address || normalizedJob.location || "",
+    email: normalizedJob.email || "",
+    phone: normalizedJob.phone || "",
+    companySize: normalizedJob.companySize || "",
+    experience: normalizedJob.experience || "",
+    careerLevel: normalizedJob.careerLevel || "",
+    jobType: normalizedJob.jobType || "",
   };
 }
 
 function mapJobToAnalysisPayload(job = {}) {
+  const normalizedJob = normalizeJobRecord(job);
   return {
     ...mapJobToAnalysisForm(job),
-    candidates: Number(job.candidates || 0),
+    candidates: Number(normalizedJob.candidates || 0),
   };
 }
 
 function buildTrackingPayload(job) {
+  const normalizedJob = normalizeJobRecord(job);
   return {
-    jobId: job?.id ?? null,
-    riskScore: Number(job?.riskScore || 0),
-    trustScore: Number(job?.trustScore || 0),
-    riskLevel: job?.riskLevel || "",
+    jobId: normalizedJob?.id ?? null,
     job: {
-      title: job?.title || "",
-      companyName: job?.companyName || "",
-      salary: job?.salary || "",
-      location: job?.location || job?.address || "",
-      description: [job?.description, job?.requirements, job?.benefits].filter(Boolean).join("\n"),
+      title: normalizedJob?.title || "",
+      jobTitle: normalizedJob?.title || "",
+      companyName: normalizedJob?.companyName || "",
+      nameCompany: normalizedJob?.companyName || "",
+      companyOverview: normalizedJob?.companyOverview || "",
+      companySize: normalizedJob?.companySize || "",
+      companyAddress: normalizedJob?.companyAddress || "",
+      salary: normalizedJob?.salary || "",
+      location: normalizedJob?.location || normalizedJob?.address || "",
+      address: normalizedJob?.address || normalizedJob?.location || "",
+      jobAddress: normalizedJob?.jobAddress || normalizedJob?.address || normalizedJob?.location || "",
+      email: normalizedJob?.email || "",
+      phone: normalizedJob?.phone || "",
+      description: normalizedJob?.description || "",
+      requirements: normalizedJob?.requirements || "",
+      benefits: normalizedJob?.benefits || "",
+      jobType: normalizedJob?.jobType || "",
+      gender: normalizedJob?.gender || "",
+      candidates: normalizedJob?.candidates || "",
+      numberCadidate: normalizedJob?.candidates || "",
+      careerLevel: normalizedJob?.careerLevel || "",
+      experience: normalizedJob?.experience || "",
+      yearsOfExperience: normalizedJob?.experience || "",
+      submissionDeadline: normalizedJob?.submissionDeadline || "",
+      industry: normalizedJob?.industry || "",
     },
   };
 }
 
 function findCount(items = [], key) {
   return items.find((item) => item.status === key)?.count || 0;
+}
+
+function normalizeJobRecord(job = {}) {
+  return {
+    id: getRecordValue(job, ["id", "jobId", "JobID"]),
+    urlJob: getRecordValue(job, ["urlJob", "url", "jobUrl", "URL Job"]),
+    title: getRecordValue(job, ["title", "jobTitle", "Job Title"]) || "",
+    companyName: getRecordValue(job, ["companyName", "nameCompany", "company", "Name Company"]) || "",
+    companyOverview: getRecordValue(job, ["companyOverview", "overview", "Company Overview"]) || "",
+    companySize: getRecordValue(job, ["companySize", "Company Size"]) || "",
+    companyAddress: getRecordValue(job, ["companyAddress", "Company Address"]) || "",
+    description: getRecordValue(job, ["description", "jobDescription", "Job Description"]) || "",
+    requirements: getRecordValue(job, ["requirements", "jobRequirements", "Job Requirements"]) || "",
+    benefits: getRecordValue(job, ["benefits", "Benefits"]) || "",
+    jobAddress: getRecordValue(job, ["jobAddress", "Job Address"]) || "",
+    address: getRecordValue(job, ["address", "jobAddress", "Job Address"]) || "",
+    location: getRecordValue(job, ["location", "address", "jobAddress", "Job Address"]) || "",
+    jobType: getRecordValue(job, ["jobType", "Job Type"]) || "",
+    gender: getRecordValue(job, ["gender", "Gender"]) || "",
+    candidates: getRecordValue(job, ["candidates", "numberCandidate", "numberCadidate", "Number Cadidate"]) || "",
+    careerLevel: getRecordValue(job, ["careerLevel", "Career Level"]) || "",
+    experience: getRecordValue(job, ["experience", "yearsOfExperience", "Years of Experience"]) || "",
+    salary: getRecordValue(job, ["salary", "Salary"]) || "",
+    submissionDeadline: getRecordValue(job, ["submissionDeadline", "Submission Deadline"]) || "",
+    industry: getRecordValue(job, ["industry", "Industry"]) || "",
+    email: getRecordValue(job, ["email", "Email", "companyEmail", "contactEmail"]) || "",
+    phone: getRecordValue(job, ["phone", "Phone", "companyPhone", "contactPhone", "Số điện thoại"]) || "",
+  };
+}
+
+function getRecordValue(record, keys = []) {
+  for (const key of keys) {
+    if (record?.[key] !== undefined && record?.[key] !== null && record?.[key] !== "") {
+      return record[key];
+    }
+  }
+  return "";
+}
+
+function enrichAnalysisResult(analysis, job, systemBlacklist, userBlacklist) {
+  if (!analysis) return analysis;
+  const normalizedJob = normalizeJobRecord(job);
+  const systemMatch = matchSystemBlacklist(systemBlacklist, normalizedJob);
+  const personalMatchItems = matchUserBlacklist(userBlacklist, normalizedJob);
+  const backendHasMatch = Boolean(analysis?.blacklist?.hasMatch);
+  const mergedSignals = mergeSignals(
+    analysis?.signals,
+    buildMissingFieldSignals(normalizedJob),
+    systemMatch.hasMatch ? systemMatch.details.map((item) => `Blacklist chung: ${item}`) : [],
+    personalMatchItems.length > 0 ? personalMatchItems.map((item) => `Blacklist cá nhân: ${item.title || item.companyName}`) : []
+  );
+
+  return {
+    ...analysis,
+    signals: mergedSignals,
+    blacklist: {
+      ...(analysis?.blacklist || {}),
+      hasMatch: backendHasMatch || systemMatch.hasMatch || personalMatchItems.length > 0,
+      system: systemMatch,
+      personal: {
+        hasMatch: personalMatchItems.length > 0,
+        items: personalMatchItems,
+      },
+    },
+  };
+}
+
+function buildAnalysisSummary(analysis) {
+  const trustRaw = firstDefined(
+    analysis?.trustScore,
+    analysis?.trust_score,
+    analysis?.result?.trustScore,
+    analysis?.result?.trust_score,
+    analysis?.scores?.trust,
+    analysis?.scores?.trustScore,
+    analysis?.trust?.score,
+    analysis?.trust
+  );
+  const riskRaw = firstDefined(
+    analysis?.riskScore,
+    analysis?.risk_score,
+    analysis?.result?.riskScore,
+    analysis?.result?.risk_score,
+    analysis?.riskPercent,
+    analysis?.risk_probability,
+    analysis?.scores?.risk,
+    analysis?.scores?.riskScore,
+    analysis?.risk?.score,
+    analysis?.risk
+  );
+  const trustValue = normalizePercent(trustRaw);
+  const riskValue = normalizePercent(riskRaw);
+  const resolvedRiskValue = riskValue ?? (trustValue != null ? Math.max(0, 100 - trustValue) : null);
+  const resolvedTrustValue = trustValue ?? (resolvedRiskValue != null ? Math.max(0, 100 - resolvedRiskValue) : null);
+  const decision = formatDecisionValue(firstDefined(analysis?.decision, analysis?.result?.decision, analysis?.recommendation, analysis?.result));
+  const riskLevel = firstDefined(analysis?.riskLevel, analysis?.risk_level, analysis?.result?.riskLevel, analysis?.level)?.toString().trim();
+
+  return {
+    riskScore: formatPercent(resolvedRiskValue),
+    trustScore: formatPercent(resolvedTrustValue),
+    riskLevel: riskLevel || classifyRiskLevel(resolvedRiskValue),
+    decision: decision || deriveDecisionLabel(resolvedRiskValue),
+  };
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function normalizePercent(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "object") {
+    const nested = firstDefined(value?.score, value?.value, value?.percent, value?.percentage);
+    return normalizePercent(nested);
+  }
+  if (typeof value === "string") {
+    const cleaned = value.replace("%", "").trim();
+    if (!cleaned) return null;
+    const parsed = Number(cleaned);
+    if (!Number.isFinite(parsed)) return null;
+    return clampPercent(parsed <= 1 ? parsed * 100 : parsed);
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return clampPercent(value <= 1 ? value * 100 : value);
+  }
+  return null;
+}
+
+function clampPercent(value) {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function formatPercent(value) {
+  return value == null ? "N/A" : `${value}%`;
+}
+
+function classifyRiskLevel(riskValue) {
+  if (riskValue == null) return "Chưa xác định";
+  if (riskValue >= 70) return "Cao";
+  if (riskValue >= 40) return "Trung bình";
+  return "Thấp";
+}
+
+function deriveDecisionLabel(riskValue) {
+  if (riskValue == null) return "Chưa đủ dữ liệu";
+  if (riskValue >= 70) return "Nguy hiểm";
+  if (riskValue >= 40) return "Cần kiểm tra thêm";
+  return "Tin cậy";
+}
+
+function formatDecisionValue(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (typeof value === "object") {
+    return (
+      firstDefined(value?.label, value?.text, value?.message, value?.status, value?.decision)?.toString().trim() ||
+      "Đã có quyết định phân tích"
+    );
+  }
+  return String(value).trim();
 }
 
 function buildRiskPercent(summary = {}) {
@@ -2048,23 +2365,87 @@ function buildAvatarLabel(name) {
     .join("");
 }
 
-function getRiskLabel(level) {
-  return {
-    LOW: "Thấp",
-    MEDIUM: "Trung bình",
-    HIGH: "Cao",
-  }[String(level || "").toUpperCase()] || String(level || "Thấp");
-}
-
 function matchUserBlacklist(items = [], target = {}) {
-  const title = String(target.title || "").trim().toLowerCase();
-  const companyName = String(target.companyName || "").trim().toLowerCase();
+  const normalizedTarget = normalizeJobRecord(target);
+  const title = String(normalizedTarget.title || "").trim().toLowerCase();
+  const companyName = String(normalizedTarget.companyName || "").trim().toLowerCase();
+  const email = String(normalizedTarget.email || "").trim().toLowerCase();
+  const phone = normalizePhone(normalizedTarget.phone);
 
   return items.filter((item) => {
     const itemTitle = String(item.title || "").trim().toLowerCase();
     const itemCompany = String(item.companyName || "").trim().toLowerCase();
+    const itemEmail = String(item.email || "").trim().toLowerCase();
+    const itemPhone = normalizePhone(item.phone);
     const titleMatch = itemTitle && title.includes(itemTitle);
     const companyMatch = itemCompany && companyName.includes(itemCompany);
-    return titleMatch || companyMatch;
+    const emailMatch = itemEmail && email && email.includes(itemEmail);
+    const phoneMatch = itemPhone && phone && phone.includes(itemPhone);
+    return titleMatch || companyMatch || emailMatch || phoneMatch;
   });
+}
+
+function matchSystemBlacklist(blacklist = {}, target = {}) {
+  const normalizedTarget = normalizeJobRecord(target);
+  const details = [];
+  const companyName = String(normalizedTarget.companyName || "").trim().toLowerCase();
+  const email = String(normalizedTarget.email || "").trim().toLowerCase();
+  const phone = normalizePhone(normalizedTarget.phone);
+
+  (blacklist?.companies || []).forEach((item) => {
+    const value = String(item?.name || item?.companyName || item || "").trim().toLowerCase();
+    if (value && companyName.includes(value)) {
+      details.push(`Công ty trùng blacklist: ${item?.name || item?.companyName || item}`);
+    }
+  });
+
+  (blacklist?.emails || []).forEach((item) => {
+    const value = String(item?.email || item || "").trim().toLowerCase();
+    if (value && email.includes(value)) {
+      details.push(`Email trùng blacklist: ${item?.email || item}`);
+    }
+  });
+
+  (blacklist?.phones || []).forEach((item) => {
+    const value = normalizePhone(item?.phone || item);
+    if (value && phone.includes(value)) {
+      details.push(`Số điện thoại trùng blacklist: ${item?.phone || item}`);
+    }
+  });
+
+  return {
+    hasMatch: details.length > 0,
+    details,
+  };
+}
+
+function normalizePhone(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function mergeSignals(...signalGroups) {
+  return [...new Set(signalGroups.flat().filter(Boolean).map((item) => String(item).trim()).filter(Boolean))];
+}
+
+function buildMissingFieldSignals(job = {}) {
+  const signals = [];
+  const descriptionWordCount = String(job.description || "").trim().split(/\s+/).filter(Boolean).length;
+
+  if (descriptionWordCount > 0 && descriptionWordCount < 60) {
+    signals.push("Mô tả ngắn, thiếu chi tiết công việc.");
+  }
+  if (!job.companyName) signals.push("Thiếu thông tin doanh nghiệp.");
+  if (!job.companySize) signals.push("Thiếu quy mô công ty.");
+  if (!job.companyAddress && !job.address) signals.push("Không có địa chỉ doanh nghiệp rõ ràng.");
+  if (!job.requirements) signals.push("Thiếu yêu cầu công việc.");
+  if (!job.email) signals.push("Thiếu email liên hệ.");
+  if (!job.phone) signals.push("Thiếu số điện thoại liên hệ.");
+  if (!job.jobType) signals.push("Thiếu loại hình công việc.");
+  if (!job.careerLevel) signals.push("Thiếu cấp bậc công việc.");
+  if (!job.experience) signals.push("Thiếu yêu cầu kinh nghiệm.");
+  if (!job.salary) signals.push("Thiếu thông tin lương.");
+  if (!job.submissionDeadline) signals.push("Thiếu hạn nộp hồ sơ.");
+  if (!job.industry) signals.push("Thiếu ngành nghề.");
+
+  return signals;
 }

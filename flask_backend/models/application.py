@@ -69,18 +69,40 @@ class Application(db.Model):
 
     def to_dict(self) -> dict:
         jd = self.job_data
+        display_status = _display_status(self.status)
         return {
             "id": self.id,
             "userId": self.user_id,
             "jobId": self.job_id,
             "job": {
                 "title": jd.get("title", ""),
+                "jobTitle": jd.get("jobTitle", jd.get("title", "")),
                 "companyName": jd.get("companyName", ""),
+                "nameCompany": jd.get("nameCompany", jd.get("companyName", "")),
+                "companyOverview": jd.get("companyOverview", ""),
+                "companySize": jd.get("companySize", ""),
+                "companyAddress": jd.get("companyAddress", ""),
+                "description": jd.get("description", ""),
+                "requirements": jd.get("requirements", ""),
+                "benefits": jd.get("benefits", ""),
                 "salary": jd.get("salary", ""),
                 "location": jd.get("location", ""),
+                "address": jd.get("address", jd.get("location", "")),
+                "jobAddress": jd.get("jobAddress", jd.get("address", jd.get("location", ""))),
+                "email": jd.get("email", ""),
+                "phone": jd.get("phone", ""),
+                "jobType": jd.get("jobType", ""),
+                "gender": jd.get("gender", ""),
+                "candidates": jd.get("candidates", jd.get("numberCadidate", "")),
+                "numberCadidate": jd.get("numberCadidate", jd.get("candidates", "")),
+                "careerLevel": jd.get("careerLevel", ""),
+                "experience": jd.get("experience", jd.get("yearsOfExperience", "")),
+                "yearsOfExperience": jd.get("yearsOfExperience", jd.get("experience", "")),
+                "submissionDeadline": jd.get("submissionDeadline", ""),
+                "industry": jd.get("industry", ""),
             },
-            "status": self.status.value if self.status else None,
-            "statusLabel": _STATUS_LABELS.get(self.status, ""),
+            "status": display_status,
+            "statusLabel": _STATUS_LABELS.get(display_status, ""),
             "note": self.note or "",
             "personalRating": self.personal_rating,
             "riskScore": self.risk_score,
@@ -92,10 +114,18 @@ class Application(db.Model):
 
 
 _STATUS_LABELS = {
-    ApplicationStatus.SAVED: "Chờ ứng tuyển",
-    ApplicationStatus.APPLIED: "Đã ứng tuyển",
-    ApplicationStatus.INTERVIEWING: "Đang phỏng vấn",
-    ApplicationStatus.OFFERED: "Nhận được offer",
-    ApplicationStatus.REJECTED: "Bị từ chối",
-    ApplicationStatus.WITHDRAWN: "Đã rút đơn",
+    "saved": "Chờ ứng tuyển",
+    "applied": "Đã ứng tuyển",
+    "interviewing": "Đang phỏng vấn",
+    "offered": "Nhận được offer",
+    "rejected": "Bị từ chối",
+    "withdrawn": "Đã rút đơn",
 }
+
+
+def _display_status(status: ApplicationStatus | None) -> str | None:
+    if not status:
+        return None
+    if status == ApplicationStatus.SAVED:
+        return ApplicationStatus.APPLIED.value
+    return status.value

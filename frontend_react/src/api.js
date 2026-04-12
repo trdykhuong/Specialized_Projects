@@ -95,6 +95,15 @@ export const api = {
   getJobs(params = {}) {
     return request(withQuery("/jobs", params));
   },
+  getJob(id) {
+    return request(`/jobs/${id}`);
+  },
+  createJob(payload) {
+    return request("/jobs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   analyzeJob(payload) {
     return request("/jobs/analyze", {
       method: "POST",

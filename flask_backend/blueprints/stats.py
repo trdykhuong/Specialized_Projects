@@ -31,21 +31,14 @@ def personal_overview():
 
     total = len(apps)
     status_dist: dict[str, int] = defaultdict(int)
-    risk_dist: dict[str, int] = defaultdict(int)
-    trust_scores: list[float] = []
     monthly: dict[str, int] = defaultdict(int)
 
     for a in apps:
-        status_dist[a.status.value if a.status else "unknown"] += 1
-        if a.risk_level:
-            risk_dist[a.risk_level] += 1
-        if a.trust_score:
-            trust_scores.append(a.trust_score)
+        status_key = _normalize_status(a.status.value if a.status else "unknown")
+        status_dist[status_key] += 1
         if a.applied_at:
             month_key = a.applied_at.strftime("%Y-%m")
             monthly[month_key] += 1
-
-    avg_trust = round(sum(trust_scores) / len(trust_scores), 2) if trust_scores else 0
 
     # Tỷ lệ thành công (offered / total)
     offered = status_dist.get(ApplicationStatus.OFFERED.value, 0)
@@ -60,7 +53,6 @@ def personal_overview():
     return jsonify({
         "total": total,
         "savedCount": saved_count,
-        "averageTrustScore": avg_trust,
         "successRate": success_rate,
         "statusDistribution": [
             {
@@ -69,14 +61,6 @@ def personal_overview():
                 "count": count,
             }
             for status, count in status_dist.items()
-        ],
-        "riskDistribution": [
-            {
-                "riskLevel": level,
-                "label": _RISK_LABELS.get(level, level),
-                "count": count,
-            }
-            for level, count in risk_dist.items()
         ],
         "monthlyApplications": sorted_monthly,
     })
@@ -97,7 +81,7 @@ def risk_summary():
     high_risk_applied = 0
 
     for a in apps:
-        status_key = a.status.value if a.status else "unknown"
+        status_key = _normalize_status(a.status.value if a.status else "unknown")
         if a.trust_score:
             by_status[status_key].append(a.trust_score)
         if a.risk_level == "HIGH":
@@ -128,8 +112,6 @@ _STATUS_LABELS = {
     "withdrawn": "Đã rút đơn",
 }
 
-_RISK_LABELS = {
-    "LOW": "Thấp",
-    "MEDIUM": "Trung bình",
-    "HIGH": "Cao",
-}
+
+def _normalize_status(status: str) -> str:
+    return "applied" if status == "saved" else status

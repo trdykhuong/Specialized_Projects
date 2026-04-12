@@ -258,6 +258,13 @@ textarea {
   padding: 13px 18px;
 }
 
+.primary-btn:disabled,
+.secondary-btn:disabled,
+.ghost-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .ghost-btn {
   background: transparent;
   border: 1px dashed rgba(57, 69, 73, 0.22);
@@ -568,6 +575,16 @@ textarea {
   grid-template-columns: 1.1fr 0.9fr;
 }
 
+.panel-grid.double.job-detail-layout {
+  grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.85fr);
+  align-items: start;
+}
+
+.job-detail-layout > .panel:first-child {
+  padding: 28px;
+  border-radius: 32px;
+}
+
 .panel-grid.double.analysis-layout {
   grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
   align-items: start;
@@ -654,18 +671,83 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.detail-grid-job {
+  gap: 18px;
+}
+
 .detail-item {
-  padding: 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.7);
+  min-height: 78px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.82);
   border: 1px solid var(--line);
   display: grid;
-  gap: 8px;
+  align-content: start;
+  gap: 6px;
 }
 
 .detail-item span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.detail-item strong {
+  white-space: pre-line;
+  word-break: break-word;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.detail-item-wide {
+  grid-column: 1 / -1;
+}
+
+.detail-item-rich {
+  min-height: 132px;
+  padding: 18px 16px;
+}
+
+.detail-item-rich strong {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+.static-input,
+.static-textarea {
+  display: grid;
+  gap: 8px;
+}
+
+.static-input span,
+.static-textarea span {
+  display: block;
+  margin-bottom: 0;
+  font-weight: 600;
+}
+
+.static-input-box,
+.static-textarea-box {
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.45;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.static-input-box {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.static-textarea-box {
+  display: block;
 }
 
 .saved-card,
@@ -676,7 +758,7 @@ textarea {
 
 .kanban-board {
   display: grid;
-  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
   gap: 16px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
@@ -781,6 +863,25 @@ textarea {
 .result-box.suspicious {
   background: rgba(197, 83, 69, 0.12);
   color: #9d3329;
+}
+
+.status-banner {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+}
+
+.status-banner.pending {
+  background: rgba(47, 109, 176, 0.12);
+  color: #1f568b;
+  border-color: rgba(47, 109, 176, 0.18);
+}
+
+.status-banner.success {
+  background: rgba(35, 129, 93, 0.12);
+  color: #1e694b;
+  border-color: rgba(35, 129, 93, 0.18);
 }
 
 .pie-legend,
@@ -916,6 +1017,46 @@ textarea {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.analysis-score-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(148px, 1fr));
+  gap: 20px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.score-card {
+  min-height: 168px;
+  min-width: 0;
+  padding: 24px 22px;
+  border-radius: 30px;
+  color: #fff;
+  display: grid;
+  align-content: space-between;
+  box-shadow: 0 18px 34px rgba(26, 35, 46, 0.12);
+}
+
+.score-card span {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+  max-width: 7ch;
+}
+
+.score-card strong {
+  font-size: clamp(34px, 4vw, 54px);
+  line-height: 1;
+}
+
+.score-card.risk {
+  background: linear-gradient(135deg, #de624f 0%, #c55345 100%);
+}
+
+.score-card.trust {
+  background: linear-gradient(135deg, #26b06d 0%, #178f5a 100%);
+}
+
 .bar-track {
   height: 12px;
   border-radius: 999px;
@@ -1017,6 +1158,16 @@ label span {
 }
 
 @media (max-width: 760px) {
+  .analysis-score-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+  }
+
+  .score-card {
+    min-height: 132px;
+    padding: 20px;
+  }
+
   .success-toast {
     top: 16px;
     right: 16px;

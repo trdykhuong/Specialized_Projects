@@ -26,6 +26,70 @@ def list_jobs():
     return jsonify(_predictor().list_jobs(query=query, risk=risk, page=page, page_size=page_size))
 
 
+@jobs_bp.get("/<int:job_id>")
+def get_job(job_id: int):
+    job = _predictor().get_job(job_id)
+    if not job:
+        return jsonify({"error": "Không tìm thấy job."}), 404
+    return jsonify(job)
+
+
+@jobs_bp.post("")
+def create_job():
+    from extensions import db
+    from models import CustomJob
+
+    payload = request.get_json(silent=True) or {}
+    title = str(payload.get("title", "")).strip()
+    company_name = str(payload.get("companyName", "")).strip()
+    description = str(payload.get("description", "")).strip()
+
+    if not title:
+        return jsonify({"error": "Job title là bắt buộc."}), 400
+
+    existing = (
+        CustomJob.query
+        .filter_by()
+        .order_by(CustomJob.created_at.desc())
+        .all()
+    )
+
+    for item in existing:
+        data = item.job_data
+        if (
+            str(data.get("title", "")).strip().lower() == title.lower()
+            and str(data.get("companyName", "")).strip().lower() == company_name.lower()
+            and str(data.get("description", "")).strip().lower() == description.lower()
+        ):
+            return jsonify(item.to_dict()), 200
+
+    custom_job = CustomJob()
+    custom_job.job_data = {
+        "title": title,
+        "companyName": company_name,
+        "companyOverview": str(payload.get("companyOverview", "")).strip(),
+        "companySize": str(payload.get("companySize", "")).strip(),
+        "companyAddress": str(payload.get("companyAddress", "")).strip(),
+        "description": description,
+        "requirements": str(payload.get("requirements", "")).strip(),
+        "benefits": str(payload.get("benefits", "")).strip(),
+        "address": str(payload.get("address", "")).strip(),
+        "jobType": str(payload.get("jobType", "")).strip(),
+        "gender": str(payload.get("gender", "")).strip(),
+        "candidates": int(payload.get("candidates", 0) or 0),
+        "careerLevel": str(payload.get("careerLevel", "")).strip(),
+        "experience": str(payload.get("experience", "")).strip(),
+        "salary": str(payload.get("salary", "")).strip(),
+        "submissionDeadline": str(payload.get("submissionDeadline", "")).strip(),
+        "industry": str(payload.get("industry", "")).strip(),
+        "email": str(payload.get("email", "")).strip(),
+        "phone": str(payload.get("phone", "")).strip(),
+    }
+    db.session.add(custom_job)
+    db.session.commit()
+    return jsonify(custom_job.to_dict()), 201
+
+
 # ------------------------------------------------------------------ #
 # Phân tích một tin (public — anonymous hoặc có JWT)
 # ------------------------------------------------------------------ #
