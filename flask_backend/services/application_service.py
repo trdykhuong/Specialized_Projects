@@ -1,36 +1,30 @@
 """
 services/application_service.py
-CRUD và business logic cho việc theo dõi ứng tuyển (Application)
-và tin lưu để ứng tuyển sau (SavedJob).
+Business logic cho Application và SavedJob.
+Tất cả db.session operations nằm ở đây — blueprint không gọi db trực tiếp.
 """
 from __future__ import annotations
 from sqlalchemy.exc import IntegrityError
 from extensions import db
-from models.application import ApplicationStatus, Application
+from models.application import Application, ApplicationStatus
 from models.saved_job import SavedJob
+
+_VALID_STATUSES = {s.value for s in ApplicationStatus}
 
 
 class ApplicationService:
 
     # ================================================================== #
-    # Application — theo dõi ứng tuyển
+    # Application
     # ================================================================== #
 
     @staticmethod
-    def list_applications(
-        user_id: int,
-        status_filter: str = "",
-        page: int = 1,
-        page_size: int = 20,
-    ):
-        """Trả về dict phân trang chứa danh sách application của user."""
+    def list_applications(user_id: int, status_filter: str = "", page: int = 1, page_size: int = 20) -> dict:
         query = Application.query.filter_by(user_id=user_id)
-        if status_filter and status_filter in {s.value for s in ApplicationStatus}:
+        if status_filter and status_filter in _VALID_STATUSES:
             query = query.filter_by(status=ApplicationStatus(status_filter))
 
-        query     = query.order_by(Application.applied_at.desc())
-        paginated = query.paginate(page=page, per_page=page_size, error_out=False)
-
+        paginated = query.order_by(Application.applied_at.desc()).paginate(page=page, per_page=page_size, error_out=False)
         return {
             "items":       [a.to_dict() for a in paginated.items],
             "total":       paginated.total,
@@ -43,17 +37,13 @@ class ApplicationService:
 
     @staticmethod
     def create_application(user_id: int, data: dict) -> tuple[Application | None, str | None]:
-        """
-        Tạo một bản ghi ứng tuyển mới.
-        data: { job, jobId?, status?, note?, personalRating?, riskScore?, trustScore?, riskLevel? }
-        """
         job_data = data.get("job", {})
         if not job_data or not job_data.get("title"):
             return None, "Thiếu thông tin tin tuyển dụng (job.title bắt buộc)."
 
         status_val = data.get("status", ApplicationStatus.APPLIED.value)
-        if status_val not in {s.value for s in ApplicationStatus}:
-            return None, f"Trạng thái không hợp lệ."
+        if status_val not in _VALID_STATUSES:
+            return None, f"Trạng thái không hợp lệ. Các giá trị hợp lệ: {', '.join(_VALID_STATUSES)}"
 
         app = Application(
             user_id=user_id,
@@ -77,7 +67,7 @@ class ApplicationService:
     @staticmethod
     def update_application(app: Application, data: dict) -> tuple[Application | None, str | None]:
         if "status" in data:
-            if data["status"] not in {s.value for s in ApplicationStatus}:
+            if data["status"] not in _VALID_STATUSES:
                 return None, "Trạng thái không hợp lệ."
             app.status = ApplicationStatus(data["status"])
         if "note" in data:
@@ -93,11 +83,11 @@ class ApplicationService:
         db.session.commit()
 
     # ================================================================== #
-    # SavedJob — lưu để ứng tuyển sau
+    # SavedJob
     # ================================================================== #
 
     @staticmethod
-    def list_saved_jobs(user_id: int, page: int = 1, page_size: int = 20):
+    def list_saved_jobs(user_id: int, page: int = 1, page_size: int = 20) -> dict:
         paginated = (
             SavedJob.query
             .filter_by(user_id=user_id)
@@ -156,9 +146,6 @@ class ApplicationService:
 
     @staticmethod
     def apply_from_saved(saved: SavedJob, extra_note: str = "") -> Application:
-        """
-        Chuyển SavedJob → Application (status = APPLIED), xóa SavedJob.
-        """
         app = Application(
             user_id=saved.user_id,
             job_id=saved.job_id,
@@ -176,7 +163,7 @@ class ApplicationService:
 
 
 # ------------------------------------------------------------------ #
-# Helpers
+# Helpers (internal)
 # ------------------------------------------------------------------ #
 
 def _parse_rating(value) -> int | None:

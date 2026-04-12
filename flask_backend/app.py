@@ -104,7 +104,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(stats.stats_bp)
 
     # ------------------------------------------------------------------ #
-    # Routes giữ nguyên — health, jobs, analysis, blacklist
+    # Routes  — health, jobs, analysis, blacklist
     # ------------------------------------------------------------------ #
 
     @app.get("/api/health")
