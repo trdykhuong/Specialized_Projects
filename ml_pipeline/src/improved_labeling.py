@@ -86,49 +86,57 @@ class ImprovedLabeling:
             score += 0.5
             reasons.append("Quá nhiều dấu !")
         
-        # Rule 11: Job Type là Part-time + lương cao
-        if row.get('is_part_time', 0) == 1 and row.get('salary_avg', 0) > 15000000:
-            score += 1.5
-            reasons.append("Part-time nhưng lương cao")
-        
-        # Rule 12: Job Type là Part-time + yêu cầu quản lý
-        if row.get('is_part_time', 0) == 1 and row.get('is_management_level', 0) == 1:
-            score += 1.5
-            reasons.append("Part-time cho vị trí quản lý")
-        
-        # Rule 13: Career level quản lý + không cần kinh nghiệm
-        if row.get('is_management_level', 0) == 1 and row.get('no_experience_required', 0) == 1:
+        # Rule 11: Công ty không tìm thấy hoặc không xác minh được
+        if row.get('company_found', 1) == 0:
             score += 2
-            reasons.append("Quản lý nhưng không cần kinh nghiệm")
-        
-        # Rule 14: Career level quản lý + kinh nghiệm < 3 năm
-        if row.get('is_management_level', 0) == 1 and 0 < row.get('experience_years', 0) < 3:
-            score += 1.5
-            reasons.append("Quản lý nhưng kinh nghiệm quá ít")
-        
-        # Rule 15: Entry level + lương quá cao (>20M)
-        if row.get('is_entry_level', 0) == 1 and row.get('salary_avg', 0) > 20000000:
-            score += 1.5
-            reasons.append("Entry level nhưng lương quá cao")
-        
-        # Rule 16: Entry level + yêu cầu kinh nghiệm cao (>5 năm)
-        if row.get('is_entry_level', 0) == 1 and row.get('experience_years', 0) >= 5:
+            reasons.append("Công ty không tìm thấy")
+        elif row.get('company_verified', 1) == 0:
             score += 1
-            reasons.append("Entry level nhưng yêu cầu kinh nghiệm cao")
-        
-        # Rule 17: Career level thiếu (blank) hoặc không rõ
-        if row.get('is_management_level', 0) == 0 and row.get('is_entry_level', 0) == 0:
-            career_text = str(row.get('career_level_text', '')).strip()
-            if not career_text or len(career_text) < 2:
-                score += 0.5
-                reasons.append("Không có thông tin Career Level")
-        
-        # Rule 18: Job Type thiếu hoặc không rõ
-        if row.get('is_part_time', 0) == 0 and row.get('is_full_time', 0) == 0 and row.get('is_freelance', 0) == 0:
-            job_type_text = str(row.get('job_type_text', '')).strip()
-            if not job_type_text or len(job_type_text) < 2:
-                score += 0.5
-                reasons.append("Không có thông tin Job Type")
+            reasons.append("Công ty chưa được xác minh")
+
+        # Rule 12: Công ty đã đóng cửa
+        if row.get('company_closed', 0) == 1:
+            score += 2.5
+            reasons.append("Công ty đã đóng cửa")
+
+        # Rule 13: Công ty không rõ trạng thái
+        if row.get('company_unknown', 0) == 1:
+            score += 1
+            reasons.append("Trạng thái công ty không rõ")
+
+        # Rule 14: Điểm khớp tên công ty thấp (có thể giả mạo tên)
+        match_score = row.get('company_match_score', 1.0)
+        if pd.notna(match_score) and match_score < 0.5:
+            score += 1.5
+            reasons.append("Tên công ty khớp kém")
+
+        # Rule 15: Công ty quá mới (< 6 tháng)
+        age_months = row.get('company_age_months', None)
+        if pd.notna(age_months) and age_months < 6:
+            score += 1.5
+            reasons.append("Công ty mới thành lập < 6 tháng")
+
+        # Rule 16: Có đánh giá tiêu cực về công ty
+        if row.get('reputation_found', 0) == 1:
+            neg_hits = row.get('reputation_negative_hits', 0)
+            rep_score = row.get('reputation_score', 0)
+            if neg_hits >= 2:
+                score += min(neg_hits * 0.5, 2)
+                reasons.append(f"Công ty có {neg_hits} đánh giá tiêu cực")
+            if pd.notna(rep_score) and rep_score >= 0.7:
+                score += 1
+                reasons.append("Điểm rủi ro danh tiếng cao")
+
+        # Rule 17: Rủi ro danh tiếng trung bình-cao
+        rep_avg = row.get('reputation_avg_risk', 0)
+        if pd.notna(rep_avg) and rep_avg >= 0.6:
+            score += 1
+            reasons.append("Rủi ro danh tiếng trung bình-cao")
+
+        # Rule 18: Tuyển hàng loạt + không tìm thấy thông tin công ty
+        if row.get('mass_recruitment', 0) == 1 and row.get('company_found', 1) == 0:
+            score += 1.5
+            reasons.append("Tuyển hàng loạt + không có thông tin công ty")
         
         return min(score, 10), reasons  # Cap ở 10
     
@@ -254,7 +262,8 @@ class ImprovedLabeling:
 # MAIN
 if __name__ == "__main__":
     # Load dữ liệu có features nâng cao
-    df = pd.read_csv("../data/JOB_DATA_ENHANCED_FEATURES.csv")
+    # df = pd.read_csv("../data/JOB_DATA_ENHANCED_FEATURES.csv")
+    df = pd.read_csv("../data/JOB_DATA_WITH_COMPANY.csv")
     
     print(f"Đã load {len(df)} mẫu dữ liệu")
     

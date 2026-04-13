@@ -88,7 +88,7 @@ class EnsembleJobClassifier:
         self.best_model = None
         self.best_model_name = None
         
-    def load_and_prepare_data(self, data_path="../../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv"):
+    def load_and_prepare_data(self, data_path="../../data/JOB_DATA_IMPROVED_LABELS.csv"):
         """Load và chuẩn bị dữ liệu
         
         Args:
@@ -152,26 +152,32 @@ class EnsembleJobClassifier:
         numeric_features = [
             # Text features
             'text_length', 'char_length', 'avg_word_length',
-            'uppercase_ratio', 'exclamation_count', 'number_count',
-            'vocab_diversity', 'scam_keyword_count', 'positive_keyword_count',
-            'max_word_repetition',
-            
+            'uppercase_ratio', 'exclamation_count', 'question_count',
+            'number_count', 'vocab_diversity', 'scam_keyword_count',
+            'positive_keyword_count', 'max_word_repetition',
+
             # Salary features
             'salary_missing', 'salary_negotiable', 'salary_avg',
             'salary_range_width', 'salary_suspiciously_high', 'salary_too_low',
-            
-            # Company features
+
+            # Company basic features
             'company_size_missing', 'company_size_value', 'is_small_company',
             'company_overview_length', 'company_overview_missing',
-            
+
+            # Company verification features
+            'company_extracted', 'company_found', 'company_verified',
+            'company_active', 'company_closed', 'company_unknown',
+            'company_age_months', 'company_match_score', 'company_is_branch',
+            'company_name_is_direct',
+
+            # Reputation features
+            'reputation_found', 'reputation_negative_hits',
+            'reputation_avg_risk', 'reputation_max_risk', 'reputation_score',
+
             # Requirement features
             'no_experience_required', 'experience_years',
             'num_candidates', 'mass_recruitment',
             'requirements_length', 'requirements_missing',
-            
-            # Career level & Job type features
-            'is_management_level', 'is_entry_level',
-            'is_part_time', 'is_full_time', 'is_freelance'
         ]
         
         # Lọc các features có trong data
@@ -347,7 +353,7 @@ class EnsembleJobClassifier:
         
         return fig
     
-    def run_complete_pipeline(self, data_path="../../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv"):
+    def run_complete_pipeline(self, data_path="../../data/JOB_DATA_IMPROVED_LABELS.csv"):
         """Chạy toàn bộ pipeline
         
         Args:
@@ -500,7 +506,7 @@ if __name__ == "__main__":
     # - "../../data/JOB_DATA_FINAL.csv" - Dữ liệu thô (cần FULL_TEXT được tạo tự động)
     
     results, voting_clf = classifier.run_complete_pipeline(
-        data_path="../../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv"
+        data_path="../../data/JOB_DATA_IMPROVED_LABELS.csv"
     )
     
     print("\n\n" + "="*80)

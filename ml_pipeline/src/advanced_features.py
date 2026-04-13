@@ -269,7 +269,7 @@ if __name__ == "__main__":
     
     # Lưu file
     df_enhanced.to_csv(
-        "../data/JOB_DATA_ENHANCED_FEATURES.csv",
+        "../data/JOB_DATA_ENHANCED_FEATURES.csv", # khoa lưu ra file csv: with company
         index=False,
         encoding="utf-8-sig"
     )
