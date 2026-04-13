@@ -257,11 +257,11 @@ if __name__ == "__main__":
     df_labeled = labeler.ensemble_labeling(df)
     df_labeled = labeler.analyze_labels(df_labeled)
 
-    out_all = os.path.join(DATA_DIR, "../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv")
+    out_all = os.path.join(DATA_DIR, "../data/JOB_DATA_IMPROVED_LABELS.csv")
     df_labeled.to_csv(out_all, index=False, encoding="utf-8-sig")
     print(f"\nĐã lưu: {out_all}")
 
     df_hc = labeler.get_high_confidence_samples(df_labeled, min_confidence=0.7)
-    out_hc = os.path.join(DATA_DIR, "../data/JOB_DATA_HIGH_CONFIDENCE_KHOA.csv")
+    out_hc = os.path.join(DATA_DIR, "../data/JOB_DATA_HIGH_CONFIDENCE.csv")
     df_hc.to_csv(out_hc, index=False, encoding="utf-8-sig")
     print(f"Đã lưu: {out_hc} ({len(df_hc)} mẫu)")

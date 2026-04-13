@@ -122,7 +122,7 @@ class EnsembleJobClassifier:
         print("Đang load dữ liệu...")
 
         # Ưu tiên dùng file đã có company features
-        for fname in ["../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv", "../data/JOB_DATA_HIGH_CONFIDENCE_KHOA.csv"]:
+        for fname in ["../data/JOB_DATA_IMPROVED_LABELS.csv", "../data/JOB_DATA_HIGH_CONFIDENCE.csv"]:
             path = os.path.join(DATA_DIR, fname)
             if os.path.exists(path):
                 df = pd.read_csv(path, encoding="utf-8-sig")
@@ -130,7 +130,7 @@ class EnsembleJobClassifier:
                 break
         else:
             raise FileNotFoundError(
-                "Không tìm thấy JOB_DATA_IMPROVED_LABELS_KHOA.csv. "
+                "Không tìm thấy JOB_DATA_IMPROVED_LABELS.csv. "
                 "Hãy chạy labeling.py trước."
             )
 
@@ -405,7 +405,7 @@ if __name__ == "__main__":
     joblib.dump(classifier.used_features, os.path.join(MODEL_DIR, 'feature_names.pkl'))
 
     print("\n" + "=" * 80)
-    print("HOÀN THÀNH! Đã lưu: KHOA")
+    print("HOÀN THÀNH! Đã lưu:")
     for f in ['best_model.pkl', 'voting_ensemble.pkl',
               'tfidf_vectorizer.pkl', 'scaler.pkl', 'feature_names.pkl']:
         print(f"  models/{f}")
