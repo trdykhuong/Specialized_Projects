@@ -245,7 +245,7 @@ class AdvancedFeatureExtractor:
 # MAIN: Áp dụng feature extraction
 if __name__ == "__main__":
     # Load dữ liệu đã preprocess
-    df = pd.read_csv("../data/JOB_DATA_LABELLED.csv")
+    df = pd.read_csv("../../data/JOB_DATA_LABELLED.csv")
     
     # Khởi tạo feature extractor
     extractor = AdvancedFeatureExtractor()
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     
     # Lưu file
     df_enhanced.to_csv(
-        "../data/JOB_DATA_ENHANCED_FEATURES.csv", # khoa lưu ra file csv: with company
+        "../../data/JOB_DATA_ENHANCED_FEATURES.csv", 
         index=False,
         encoding="utf-8-sig"
     )

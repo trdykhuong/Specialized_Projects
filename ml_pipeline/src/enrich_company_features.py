@@ -31,8 +31,8 @@ from backend.core.company_lookup import (
 parser = argparse.ArgumentParser()
 parser.add_argument("--use-dl",  action="store_true",
                     help="Dùng BERT (company_loolup_DL) cho reputation analysis")
-parser.add_argument("--input",   default="data/JOB_DATA_ENHANCED_FEATURES.csv")
-parser.add_argument("--output",  default="data/JOB_DATA_WITH_COMPANY.csv")
+parser.add_argument("--input",   default="../../data/JOB_DATA_ENHANCED_FEATURES.csv")
+parser.add_argument("--output",  default="../../data/JOB_DATA_WITH_COMPANY.csv")
 parser.add_argument("--workers", type=int, default=3,
                     help="Số luồng song song (mặc định: 3). Tối đa nên để 5 để tránh bị ban IP")
 parser.add_argument("--delay",   type=float, default=0.3,
