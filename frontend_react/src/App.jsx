@@ -45,6 +45,8 @@ const DEFAULT_ANALYSIS_FORM = {
   experience: "",
   careerLevel: "",
   jobType: "",
+  submissionDeadline: "",
+  candidates: "",
 };
 
 const DEFAULT_USER_BLACKLIST_FORM = {
@@ -56,7 +58,7 @@ const menuSections = [
   {
     title: "Workspace",
     items: [
-      { id: "analysis", label: "Phân tích tin" },
+      { id: "analysis", label: "Analysis" },
       { id: "saved", label: "Saved Jobs" },
       { id: "applications", label: "Applications" },
       { id: "statistics", label: "Statistic" },
@@ -392,7 +394,9 @@ export default function App() {
           ...mapJobToAnalysisPayload(analysisForm),
           source: "manual",
         });
-        detailJob = { ...detailJob, ...createdJob };
+        detailJob = { ...detailJob, ...createdJob, ...analysisForm };
+      } else {
+        detailJob = { ...detailJob, ...analysisForm };
       }
       setSelectedJob(detailJob);
       setJobAnalysis(result);
@@ -1113,7 +1117,7 @@ function DashboardPanel({ overview, stats, token, onOpenRecommendations }) {
           <h3>Personal snapshot</h3>
           {token ? (
             <div className="funnel">
-              <FunnelStep label="Saved" value={stats?.savedCount || 0} />
+              <FunnelStep label="Saved"  value={stats?.savedCount || 0} />
               <FunnelStep label="Applied" value={stats?.total || 0} />
               <FunnelStep label="Success rate" value={`${stats?.successRate || 0}%`} />
               <button className="primary-btn" onClick={onOpenRecommendations}>Open analysis workspace</button>
@@ -1195,6 +1199,8 @@ function AnalysisWorkspace({
               <Field label="Địa chỉ" value={analysisForm.address} onChange={(value) => setAnalysisForm((current) => ({ ...current, address: value }))} maxLength={160} />
               <Field label="Email" value={analysisForm.email} onChange={(value) => setAnalysisForm((current) => ({ ...current, email: value }))} maxLength={160} />
               <Field label="Số điện thoại" value={analysisForm.phone} onChange={(value) => setAnalysisForm((current) => ({ ...current, phone: value }))} maxLength={40} />
+              <Field label="Hạn chót nộp hồ sơ" value={analysisForm.submissionDeadline} onChange={(value) => setAnalysisForm((current) => ({ ...current, submissionDeadline: value }))} maxLength={80} />
+              <Field label="Số lượng ứng viên" value={analysisForm.candidates} onChange={(value) => setAnalysisForm((current) => ({ ...current, candidates: value }))} maxLength={40} />
             </div>
             <label>
               <span>Mô tả</span>
@@ -1235,7 +1241,7 @@ function AnalysisWorkspace({
                   <div className="quick-job-card-content">
                     <strong>{job.title}</strong>
                     <p className="muted">{job.companyName || "Unknown company"}</p>
-                    <p className="muted">{job.location || "Toàn quốc"} • {job.salary || "Đang cập nhật"}</p>
+                    <p className="muted">{job.location || "Toàn quốc"} • {job.salary || "Không có "}</p>
                   </div>
                   <div className="quick-job-actions">
                     <button className="secondary-btn" type="button" onClick={() => onPickJob(job)}>Đưa vào form</button>
@@ -1287,7 +1293,7 @@ function AnalysisWorkspace({
                     <article key={`${item.job?.title || "job"}-${index}`} className="batch-result-card">
                       <h4>{item.job?.title || "Untitled job"}</h4>
                       <p>{item.job?.companyName || "Unknown company"}</p>
-                      <p className="muted">{item.job?.address || "Chưa có địa chỉ"} • {item.job?.salary || "Đang cập nhật"}</p>
+                      <p className="muted">{item.job?.address || "Chưa có địa chỉ"} • {item.job?.salary || "Không có "}</p>
                       <div className="card-actions">
                         <button className="secondary-btn" type="button" onClick={() => onOpenJob(item.job, item)}>Chi tiết</button>
                         <button className="ghost-btn" type="button" onClick={() => onSaveJob(item.job)}>Save</button>
@@ -1331,16 +1337,12 @@ function JobDetailPanel({ job, analysis, viewMode = "analysis", analysisRequest,
     { label: "Phúc lợi", value: normalizedJob.benefits, type: "textarea", rows: 5 },
   ];
   const metaFields = [
-    { label: "Company Overview", value: normalizedJob.companyOverview, multiline: true, longText: true },
     { label: "Company Size", value: normalizedJob.companySize },
-    { label: "Company Address", value: normalizedJob.companyAddress },
     { label: "Job Type", value: normalizedJob.jobType },
-    { label: "Gender", value: normalizedJob.gender },
     { label: "Number Cadidate", value: normalizedJob.candidates },
     { label: "Career Level", value: normalizedJob.careerLevel },
     { label: "Years of Experience", value: normalizedJob.experience },
     { label: "Submission Deadline", value: normalizedJob.submissionDeadline },
-    { label: "Industry", value: normalizedJob.industry },
   ];
 
   return (
@@ -1973,7 +1975,7 @@ function StatCard({ title, value, accent }) {
 }
 
 function DetailItem({ label, value, multiline = false, longText = false }) {
-  const displayValue = value === undefined || value === null || value === "" ? "Đang cập nhật" : value;
+  const displayValue = value === undefined || value === null || value === "" ? "Không có " : value;
   return (
     <div className={`detail-item${multiline ? " detail-item-wide" : ""}${longText ? " detail-item-rich" : ""}`}>
       <span>{label}</span>
@@ -1983,7 +1985,7 @@ function DetailItem({ label, value, multiline = false, longText = false }) {
 }
 
 function StaticField({ label, value }) {
-  const displayValue = value === undefined || value === null || value === "" ? "Đang cập nhật" : value;
+  const displayValue = value === undefined || value === null || value === "" ? "Không có " : value;
   return (
     <label className="static-input">
       <span>{label}</span>
@@ -1993,7 +1995,7 @@ function StaticField({ label, value }) {
 }
 
 function StaticTextarea({ label, value, rows = 5 }) {
-  const displayValue = value === undefined || value === null || value === "" ? "Đang cập nhật" : value;
+  const displayValue = value === undefined || value === null || value === "" ? "Không có " : value;
   return (
     <label className="static-textarea">
       <span>{label}</span>
@@ -2141,6 +2143,8 @@ function mapJobToAnalysisForm(job = {}) {
     experience: normalizedJob.experience || "",
     careerLevel: normalizedJob.careerLevel || "",
     jobType: normalizedJob.jobType || "",
+    submissionDeadline: normalizedJob.submissionDeadline || "",
+    candidates: normalizedJob.candidates || "",
   };
 }
 
@@ -2149,6 +2153,7 @@ function mapJobToAnalysisPayload(job = {}) {
   return {
     ...mapJobToAnalysisForm(job),
     candidates: Number(normalizedJob.candidates || 0),
+    submissionDeadline: normalizedJob.submissionDeadline || "",
   };
 }
 
@@ -2445,7 +2450,7 @@ function buildMissingFieldSignals(job = {}) {
   if (!job.experience) signals.push("Thiếu yêu cầu kinh nghiệm.");
   if (!job.salary) signals.push("Thiếu thông tin lương.");
   if (!job.submissionDeadline) signals.push("Thiếu hạn nộp hồ sơ.");
-  if (!job.industry) signals.push("Thiếu ngành nghề.");
+ 
 
   return signals;
 }
