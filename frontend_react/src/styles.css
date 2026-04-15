@@ -1133,6 +1133,28 @@ label span {
   box-shadow: 0 0 0 3px rgba(197, 83, 69, 0.12);
 }
 
+.textarea-error {
+  border-color: #c55345;
+  box-shadow: 0 0 0 3px rgba(197, 83, 69, 0.12);
+  background-color: rgba(197, 83, 69, 0.04);
+}
+
+.info-banner {
+  margin: 0 0 16px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(47, 109, 176, 0.12);
+  color: #2f6db0;
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+.info-banner strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #1f5a8f;
+}
+
 .auth-embed {
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;

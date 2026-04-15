@@ -105,6 +105,7 @@ export default function App() {
   const [analysisMode, setAnalysisMode] = useState("single");
   const [analysisForm, setAnalysisForm] = useState(DEFAULT_ANALYSIS_FORM);
   const [analysisFormSource, setAnalysisFormSource] = useState("manual");
+  const [analysisFormValidation, setAnalysisFormValidation] = useState({ errors: {}, warnings: [] });
   const [batchText, setBatchText] = useState(sampleBatchText);
   const [batchAnalysis, setBatchAnalysis] = useState(null);
   const [stats, setStats] = useState(null);
@@ -380,6 +381,21 @@ export default function App() {
   }
 
   async function handleAnalyzeSingle() {
+    // Validate form
+    const validation = validateAnalysisForm(analysisForm);
+    setAnalysisFormValidation(validation);
+
+    if (Object.keys(validation.errors).length > 0) {
+      setAnalysisRequest({
+        pending: false,
+        context: "single",
+        error: "Vui lòng điền đầy đủ và chính xác các trường bắt buộc. Xem chi tiết lỗi dưới form.",
+        message: "",
+      });
+      setStatusMessage("Hãy hoàn thành form phân tích trước khi gửi.");
+      return;
+    }
+
     setAnalysisRequest({
       pending: true,
       context: "single",
@@ -402,6 +418,7 @@ export default function App() {
       setJobAnalysis(result);
       setDetailBackPage("analysis");
       setActivePage("detail");
+      setAnalysisFormValidation({ errors: {}, warnings: [] });
       setAnalysisRequest({
         pending: false,
         context: "single",
@@ -797,6 +814,7 @@ export default function App() {
             setMode={setAnalysisMode}
             analysisForm={analysisForm}
             setAnalysisForm={setAnalysisForm}
+            analysisFormValidation={analysisFormValidation}
             onAnalyzeSingle={handleAnalyzeSingle}
             analysisRequest={analysisRequest}
             batchText={batchText}
@@ -1136,6 +1154,7 @@ function AnalysisWorkspace({
   setMode,
   analysisForm,
   setAnalysisForm,
+  analysisFormValidation,
   onAnalyzeSingle,
   analysisRequest,
   batchText,
@@ -1187,29 +1206,146 @@ function AnalysisWorkspace({
           <div className="panel panel-stack analysis-form-panel">
             {singleAnalyzeError && <div className="error-banner">{singleAnalyzeError}</div>}
             {singleAnalyzeMessage && <div className={singleAnalyzePending ? "status-banner pending" : "status-banner success"}>{singleAnalyzeMessage}</div>}
+            
+            {/* Hiển thị cảnh báo nếu có */}
+            {analysisFormValidation.warnings.length > 0 && (
+              <div className="info-banner">
+                <strong>💡 Gợi ý cải thiện phân tích:</strong>
+                <ul style={{ marginTop: "8px", paddingLeft: "20px" }}>
+                  {analysisFormValidation.warnings.map((warning, idx) => (
+                    <li key={idx}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="detail-grid">
-              <Field label="Job title" value={analysisForm.title} onChange={(value) => setAnalysisForm((current) => ({ ...current, title: value }))} maxLength={160} />
               <Field
-                label="Tên công ty"
-                value={analysisForm.companyName}
-                onChange={(value) => setAnalysisForm((current) => ({ ...current, companyName: value }))}
+                label="Job title *"
+                value={analysisForm.title}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, title: value }))}
+                error={analysisFormValidation.errors.title}
                 maxLength={160}
               />
-              <Field label="Mức lương" value={analysisForm.salary} onChange={(value) => setAnalysisForm((current) => ({ ...current, salary: value }))} maxLength={120} />
-              <Field label="Địa chỉ" value={analysisForm.address} onChange={(value) => setAnalysisForm((current) => ({ ...current, address: value }))} maxLength={160} />
-              <Field label="Email" value={analysisForm.email} onChange={(value) => setAnalysisForm((current) => ({ ...current, email: value }))} maxLength={160} />
-              <Field label="Số điện thoại" value={analysisForm.phone} onChange={(value) => setAnalysisForm((current) => ({ ...current, phone: value }))} maxLength={40} />
-              <Field label="Hạn chót nộp hồ sơ" value={analysisForm.submissionDeadline} onChange={(value) => setAnalysisForm((current) => ({ ...current, submissionDeadline: value }))} maxLength={80} />
-              <Field label="Số lượng ứng viên" value={analysisForm.candidates} onChange={(value) => setAnalysisForm((current) => ({ ...current, candidates: value }))} maxLength={40} />
+              <Field
+                label="Tên công ty *"
+                value={analysisForm.companyName}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, companyName: value }))}
+                error={analysisFormValidation.errors.companyName}
+                maxLength={160}
+              />
+              <Field
+                label="Mức lương"
+                value={analysisForm.salary}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, salary: value }))}
+                error={analysisFormValidation.errors.salary}
+                maxLength={120}
+              />
+              <Field
+                label="Địa chỉ"
+                value={analysisForm.address}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, address: value }))}
+                error={analysisFormValidation.errors.address}
+                maxLength={160}
+              />
+              <Field
+                label="Email"
+                type="email"
+                value={analysisForm.email}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, email: value }))}
+                error={analysisFormValidation.errors.email}
+                maxLength={160}
+              />
+              <Field
+                label="Số điện thoại"
+                value={analysisForm.phone}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, phone: value }))}
+                error={analysisFormValidation.errors.phone}
+                maxLength={40}
+              />
+              <Field
+                label="Hạn chót nộp hồ sơ"
+                value={analysisForm.submissionDeadline}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, submissionDeadline: value }))}
+                error={analysisFormValidation.errors.submissionDeadline}
+                maxLength={80}
+              />
+              <Field
+                label="Số lượng ứng viên"
+                type="text"
+                value={analysisForm.candidates}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, candidates: value }))}
+                error={analysisFormValidation.errors.candidates}
+                maxLength={40}
+                inputMode="numeric"
+              />
             </div>
+
             <label>
-              <span>Mô tả</span>
-              <textarea rows="6" value={analysisForm.description} onChange={(event) => setAnalysisForm((current) => ({ ...current, description: event.target.value.slice(0, 2500) }))} maxLength={2500} />
+              <span>Mô tả *</span>
+              <small style={{ color: analysisFormValidation.errors.description ? "#d32f2f" : "#999" }}>
+                {analysisFormValidation.errors.description ? `❌ ${analysisFormValidation.errors.description}` : "Nhập ít nhất 20 ký tự"}
+              </small>
+              <textarea
+                rows="6"
+                value={analysisForm.description}
+                onChange={(event) => setAnalysisForm((current) => ({ ...current, description: event.target.value.slice(0, 2500) }))}
+                maxLength={2500}
+                className={analysisFormValidation.errors.description ? "textarea-error" : ""}
+              />
             </label>
+
             <label>
-              <span>Yêu cầu</span>
-              <textarea rows="4" value={analysisForm.requirements} onChange={(event) => setAnalysisForm((current) => ({ ...current, requirements: event.target.value.slice(0, 1800) }))} maxLength={1800} />
+              <span>Yêu cầu *</span>
+              <small style={{ color: analysisFormValidation.errors.requirements ? "#d32f2f" : "#999" }}>
+                {analysisFormValidation.errors.requirements ? `❌ ${analysisFormValidation.errors.requirements}` : "Nhập ít nhất 10 ký tự"}
+              </small>
+              <textarea
+                rows="4"
+                value={analysisForm.requirements}
+                onChange={(event) => setAnalysisForm((current) => ({ ...current, requirements: event.target.value.slice(0, 1800) }))}
+                maxLength={1800}
+                className={analysisFormValidation.errors.requirements ? "textarea-error" : ""}
+              />
             </label>
+
+            <label>
+              <span>Phúc lợi</span>
+              <textarea
+                rows="3"
+                value={analysisForm.benefits}
+                onChange={(event) => setAnalysisForm((current) => ({ ...current, benefits: event.target.value.slice(0, 1000) }))}
+                maxLength={1000}
+              />
+            </label>
+
+            <div className="detail-grid">
+              <Field
+                label="Quy mô công ty"
+                value={analysisForm.companySize}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, companySize: value }))}
+                maxLength={80}
+              />
+              <Field
+                label="Loại công việc"
+                value={analysisForm.jobType}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, jobType: value }))}
+                maxLength={80}
+              />
+              <Field
+                label="Kinh nghiệm yêu cầu"
+                value={analysisForm.experience}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, experience: value }))}
+                maxLength={80}
+              />
+              <Field
+                label="Mức độ sự nghiệp"
+                value={analysisForm.careerLevel}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, careerLevel: value }))}
+                maxLength={80}
+              />
+            </div>
+
             <div className="card-actions">
               <button className="primary-btn" type="button" onClick={onAnalyzeSingle} disabled={singleAnalyzePending}>
                 {singleAnalyzePending ? "Đang phân tích..." : "Phân tích tin này"}
@@ -2026,6 +2162,81 @@ function BarRow({ label, value, max }) {
       </div>
     </div>
   );
+}
+
+function validateAnalysisForm(values) {
+  const errors = {};
+  const warnings = [];
+
+  // Kiểm tra trường bắt buộc
+  if (!values.title?.trim()) {
+    errors.title = "Tiêu đề công việc là bắt buộc.";
+  } else if (values.title.trim().length < 3) {
+    errors.title = "Tiêu đề phải ít nhất 3 ký tự.";
+  } else if (values.title.length > 160) {
+    errors.title = "Tiêu đề không được vượt quá 160 ký tự.";
+  }
+
+  if (!values.companyName?.trim()) {
+    errors.companyName = "Tên công ty là bắt buộc.";
+  } else if (values.companyName.trim().length < 2) {
+    errors.companyName = "Tên công ty phải ít nhất 2 ký tự.";
+  } else if (values.companyName.length > 160) {
+    errors.companyName = "Tên công ty không được vượt quá 160 ký tự.";
+  }
+
+  if (!values.description?.trim()) {
+    errors.description = "Mô tả công việc là bắt buộc để phân tích.";
+  } else if (values.description.trim().length < 20) {
+    errors.description = "Mô tả phải ít nhất 20 ký tự (để có phân tích chính xác).";
+  } else if (values.description.length > 2500) {
+    errors.description = "Mô tả không được vượt quá 2500 ký tự.";
+  }
+
+  if (!values.requirements?.trim()) {
+    errors.requirements = "Yêu cầu công việc là bắt buộc để phân tích.";
+  } else if (values.requirements.trim().length < 10) {
+    errors.requirements = "Yêu cầu phải ít nhất 10 ký tự (để có phân tích chính xác).";
+  } else if (values.requirements.length > 1800) {
+    errors.requirements = "Yêu cầu không được vượt quá 1800 ký tự.";
+  }
+
+  // Kiểm tra email nếu có
+  if (values.email?.trim()) {
+    if (!isValidEmail(values.email)) {
+      errors.email = "Email chưa đúng định dạng (vd: abc@domain.com).";
+    }
+  }
+
+  // Kiểm tra phone nếu có
+  if (values.phone?.trim()) {
+    if (!/^[0-9+\s().-]{8,20}$/.test(values.phone)) {
+      errors.phone = "Số điện thoại chưa đúng định dạng (8-20 ký tự).";
+    }
+  }
+
+  // Kiểm tra candidates nếu có
+  if (values.candidates?.trim()) {
+    if (!/^\d+$/.test(values.candidates.trim())) {
+      errors.candidates = "Số lượng ứng viên phải là số nguyên dương.";
+    }
+  }
+
+  // Cảnh báo cho các trường tiềm năng cải thiện phân tích
+  if (!values.salary?.trim()) {
+    warnings.push("💡 Thêm mức lương sẽ cải thiện độ chính xác phân tích.");
+  }
+  if (!values.address?.trim()) {
+    warnings.push("💡 Thêm địa chỉ giúp xác định vị trí công việc tốt hơn.");
+  }
+  if (!values.companySize?.trim()) {
+    warnings.push("💡 Quy mô công ty giúp đánh giá độ uy tín của công ty.");
+  }
+  if (!values.experience?.trim()) {
+    warnings.push("💡 Kinh nghiệm yêu cầu giúp lọc các công việc phù hợp.");
+  }
+
+  return { errors, warnings };
 }
 
 function validateLogin(values) {
