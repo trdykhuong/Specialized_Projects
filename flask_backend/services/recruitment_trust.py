@@ -108,50 +108,86 @@ class RecruitmentTrustService:
     # ------------------------------------------------------------------ #
     # Analysis
     # ------------------------------------------------------------------ #
+import logging
 
-    def analyze_job(self, payload):
-        job          = self._normalize_input(payload)
-        heuristic    = self._heuristic_analysis(job)
-        blacklist    = self._blacklist_matches(job)
+# Cấu hình logging (nên đặt ở đầu file)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# ================== METHOD analyze_job ==================
+def analyze_job(self, payload):
+    logger.info("=== Bắt đầu analyze_job ===")
+    logger.debug(f"Payload nhận được: {payload}")
+    
+    try:
+        job = self._normalize_input(payload)
+        logger.info(f"Đã chuẩn hóa input: {job.get('title', 'Không có title')}")
+        
+        logger.debug("Đang chạy heuristic analysis...")
+        heuristic = self._heuristic_analysis(job)
+        logger.info(f"Heuristic - riskScore: {heuristic.get('riskScore')}, confidence: {heuristic.get('confidence')}")
+        
+        logger.debug("Đang kiểm tra blacklist...")
+        blacklist = self._blacklist_matches(job)
+        logger.info(f"Blacklist match: {blacklist.get('hasMatch', False)}")
+        
+        logger.debug("Đang tính personalization score...")
         recommendation = self._personalization_score(job, payload.get("candidateProfile", {}))
+        
+        logger.debug("Đang chạy model predict...")
         model_result = self._model_predict(job)
-
+        
         if model_result:
-            model_risk  = model_result["probability_fake"] * 100
-            risk_score  = round(model_risk * 0.65 + heuristic["riskScore"] * 0.35, 2)
+            logger.info("Model trả về kết quả, tính toán kết hợp với heuristic")
+            model_risk = model_result["probability_fake"] * 100
+            risk_score = round(model_risk * 0.65 + heuristic["riskScore"] * 0.35, 2)
             trust_score = round(100 - risk_score, 2)
-            confidence  = round(
+            confidence = round(
                 max(model_result["probability_real"], model_result["probability_fake"]) * 0.7
                 + heuristic["confidence"] * 0.3,
                 3,
             )
+            logger.info(f"Model kết hợp - risk_score: {risk_score}, trust_score: {trust_score}, confidence: {confidence}")
         else:
-            risk_score  = heuristic["riskScore"]
+            logger.warning("Model không có kết quả, fallback sang heuristic thuần")
+            risk_score = heuristic["riskScore"]
             trust_score = 100 - risk_score
-            confidence  = heuristic["confidence"]
-
+            confidence = heuristic["confidence"]
+            logger.info(f"Heuristic thuần - risk_score: {risk_score}, trust_score: {trust_score}, confidence: {confidence}")
+        
         if blacklist["hasMatch"]:
-            risk_score  = min(100, risk_score + 20)
+            logger.warning(f"Phát hiện blacklist match, tăng risk_score từ {risk_score} lên {min(100, risk_score + 20)}")
+            risk_score = min(100, risk_score + 20)
             trust_score = max(0, 100 - risk_score)
-
+        
+        risk_level = self._risk_label_from_score(risk_score)
+        risk_label_vi = self._risk_label_vi(risk_score)
+        logger.info(f"Risk level: {risk_level} / {risk_label_vi}")
+        
         result = {
-            "trustScore":   trust_score,
-            "riskScore":    risk_score,
-            "riskLevel":    self._risk_label_from_score(risk_score),
-            "riskLabel":    self._risk_label_vi(risk_score),
-            "confidence":   confidence,
-            "decision":     (
+            "trustScore": trust_score,
+            "riskScore": risk_score,
+            "riskLevel": risk_level,
+            "riskLabel": risk_label_vi,
+            "confidence": confidence,
+            "decision": (
                 "Tin cậy" if risk_score < 40
                 else "Cần kiểm tra" if risk_score < 70
                 else "Nguy cơ cao"
             ),
-            "modelReady":   self.model_ready,
+            "modelReady": self.model_ready,
             "modelMessage": (
                 "Đã dùng mô hình máy học." if model_result
                 else "Đang dùng heuristic vì chưa có mô hình phù hợp."
             ),
         }
-
+        
+        logger.info(f"Kết quả cuối cùng - decision: {result['decision']}, trustScore: {trust_score}")
+        logger.info("=== Kết thúc analyze_job thành công ===")
+        
         return {
             "job": job,
             "result": result,
@@ -163,47 +199,91 @@ class RecruitmentTrustService:
             "decision": result["decision"],
             "modelReady": result["modelReady"],
             "modelMessage": result["modelMessage"],
-            "signals":         heuristic["signals"],
-            "blacklist":       blacklist,
+            "signals": heuristic["signals"],
+            "blacklist": blacklist,
             "personalization": recommendation,
         }
+        
+    except Exception as e:
+        logger.error(f"Lỗi trong analyze_job: {str(e)}", exc_info=True)
+        raise
 
-    def batch_analyze(self, payload):
-        jobs         = payload.get("jobs", []) if isinstance(payload, dict) else []
-        raw_text     = payload.get("rawText", "") if isinstance(payload, dict) else ""
+# ================== METHOD batch_analyze ==================
+def batch_analyze(self, payload):
+    logger.info("=== BẮT ĐẦU BATCH ANALYZE ===")
+    logger.debug(f"Payload batch: {payload}")
+    
+    try:
+        jobs = payload.get("jobs", []) if isinstance(payload, dict) else []
+        raw_text = payload.get("rawText", "") if isinstance(payload, dict) else ""
         parsing_notes = []
-
+        
+        logger.info(f"Jobs từ payload: {len(jobs)} jobs, rawText length: {len(raw_text)}")
+        
         if raw_text:
+            logger.info("Đang parse rawText thành các job...")
             parsed_jobs, parsing_notes = self._parse_bulk_jobs(raw_text)
+            logger.info(f"Parse xong: thêm {len(parsed_jobs)} jobs từ rawText")
+            if parsing_notes:
+                logger.warning(f"Ghi chú parsing: {parsing_notes}")
             jobs = jobs + parsed_jobs
-
-        jobs    = jobs[:50]
-        results = [self.analyze_job(job) for job in jobs]
-
+        
+        original_count = len(jobs)
+        jobs = jobs[:50]
+        if original_count > 50:
+            logger.warning(f"Giới hạn jobs từ {original_count} xuống 50 jobs")
+        
+        logger.info(f"Bắt đầu phân tích batch với {len(jobs)} jobs")
+        results = []
+        for idx, job in enumerate(jobs):
+            logger.debug(f"Đang phân tích job {idx+1}/{len(jobs)}: {job.get('title', 'No title')}")
+            try:
+                result = self.analyze_job(job)
+                results.append(result)
+                logger.debug(f"Job {idx+1} OK - trustScore: {result.get('trustScore')}")
+            except Exception as e:
+                logger.error(f"Job {idx+1} thất bại: {str(e)}", exc_info=True)
+                # Tùy chọn: thêm None hoặc bỏ qua
+                continue
+        
+        logger.info(f"Phân tích xong {len(results)}/{len(jobs)} jobs thành công")
+        
         risk_levels = {"LOW": 0, "MEDIUM": 0, "HIGH": 0}
         for item in results:
             risk_levels[item["result"]["riskLevel"]] += 1
-
+        
+        logger.info(f"Thống kê risk level: LOW={risk_levels['LOW']}, MEDIUM={risk_levels['MEDIUM']}, HIGH={risk_levels['HIGH']}")
+        
         avg_trust = (
             round(sum(i["result"]["trustScore"] for i in results) / len(results), 2)
             if results else 0
         )
+        logger.info(f"Điểm trust trung bình: {avg_trust}")
+        
+        summary = {
+            "total": len(results),
+            "parsedFromText": len(jobs),
+            "riskLevels": risk_levels,
+            "riskLevelsVi": {
+                "Thấp": risk_levels["LOW"],
+                "Trung bình": risk_levels["MEDIUM"],
+                "Cao": risk_levels["HIGH"],
+            },
+            "averageTrustScore": avg_trust,
+            "message": "Đã phân tích danh sách tin tuyển dụng.",
+        }
+        
+        logger.info("=== KẾT THÚC BATCH ANALYZE THÀNH CÔNG ===")
+        
         return {
             "items": results,
-            "summary": {
-                "total":           len(results),
-                "parsedFromText":  len(jobs),
-                "riskLevels":      risk_levels,
-                "riskLevelsVi":    {
-                    "Thấp": risk_levels["LOW"],
-                    "Trung bình": risk_levels["MEDIUM"],
-                    "Cao": risk_levels["HIGH"],
-                },
-                "averageTrustScore": avg_trust,
-                "message": "Đã phân tích danh sách tin tuyển dụng.",
-            },
+            "summary": summary,
             "parsingNotes": parsing_notes,
         }
+        
+    except Exception as e:
+        logger.error(f"Lỗi nghiêm trọng trong batch_analyze: {str(e)}", exc_info=True)
+        raise
 
 
     # ------------------------------------------------------------------ #
