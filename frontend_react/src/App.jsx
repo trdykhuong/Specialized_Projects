@@ -605,7 +605,8 @@ export default function App() {
     }
 
     try {
-      await api.createSavedJob(buildTrackingPayload(job));
+      const trackedJob = await prepareJobForTracking(job);
+      await api.createSavedJob(buildTrackingPayload(trackedJob));
       await refreshUserData("Đã lưu job vào Saved Jobs.");
       setActivePage("saved");
     } catch (error) {
@@ -621,12 +622,56 @@ export default function App() {
     }
 
     try {
-      await api.createApplication(buildTrackingPayload(job));
+      const trackedJob = await prepareJobForTracking(job);
+      await api.createApplication(buildTrackingPayload(trackedJob));
       await refreshUserData("Đã thêm job vào Applications.");
       setActivePage("applications");
     } catch (error) {
       setStatusMessage(error.message || "Không tạo được application.");
     }
+  }
+
+  async function prepareJobForTracking(job) {
+    const draftJob = mergeTrackingDraft(job);
+    const normalizedDraft = normalizeJobRecord(draftJob);
+
+    if (normalizedDraft.id !== "" && normalizedDraft.id !== null && normalizedDraft.id !== undefined) {
+      return draftJob;
+    }
+
+    const hasTrackableContent = [normalizedDraft.title, normalizedDraft.companyName, normalizedDraft.description, normalizedDraft.requirements]
+      .some((value) => asTrimmedText(value));
+
+    if (!hasTrackableContent) {
+      return draftJob;
+    }
+
+    const createdJob = await api.createJob({
+      ...mapJobToAnalysisPayload(draftJob),
+      source: analysisFormSource === "existing" ? "existing" : "manual",
+    });
+
+    return {
+      ...draftJob,
+      ...createdJob,
+    };
+  }
+
+  function mergeTrackingDraft(job) {
+    if (job !== analysisForm) {
+      return job;
+    }
+
+    if (analysisFormSource === "existing" && selectedJob) {
+      return {
+        ...selectedJob,
+        ...analysisForm,
+      };
+    }
+
+    return {
+      ...analysisForm,
+    };
   }
 
   function openJobDetail(job, options = {}) {
@@ -2167,72 +2212,83 @@ function BarRow({ label, value, max }) {
 function validateAnalysisForm(values) {
   const errors = {};
   const warnings = [];
+  const title = asTrimmedText(values.title);
+  const companyName = asTrimmedText(values.companyName);
+  const description = asTrimmedText(values.description);
+  const requirements = asTrimmedText(values.requirements);
+  const email = asTrimmedText(values.email);
+  const phone = asTrimmedText(values.phone);
+  const candidates = asTrimmedText(values.candidates);
+  const salary = asTrimmedText(values.salary);
+  const address = asTrimmedText(values.address);
+  const companySize = asTrimmedText(values.companySize);
+  const experience = asTrimmedText(values.experience);
 
   // Kiểm tra trường bắt buộc
-  if (!values.title?.trim()) {
+  if (!title) {
     errors.title = "Tiêu đề công việc là bắt buộc.";
-  } else if (values.title.trim().length < 3) {
+  } else if (title.length < 3) {
     errors.title = "Tiêu đề phải ít nhất 3 ký tự.";
-  } else if (values.title.length > 160) {
+  } else if (title.length > 160) {
     errors.title = "Tiêu đề không được vượt quá 160 ký tự.";
   }
 
-  if (!values.companyName?.trim()) {
+  if (!companyName) {
     errors.companyName = "Tên công ty là bắt buộc.";
-  } else if (values.companyName.trim().length < 2) {
+  } else if (companyName.length < 2) {
     errors.companyName = "Tên công ty phải ít nhất 2 ký tự.";
-  } else if (values.companyName.length > 160) {
+  } else if (companyName.length > 160) {
     errors.companyName = "Tên công ty không được vượt quá 160 ký tự.";
   }
 
-  if (!values.description?.trim()) {
+  if (!description) {
     errors.description = "Mô tả công việc là bắt buộc để phân tích.";
-  } else if (values.description.trim().length < 20) {
+  } else if (description.length < 20) {
     errors.description = "Mô tả phải ít nhất 20 ký tự (để có phân tích chính xác).";
-  } else if (values.description.length > 2500) {
+  } else if (description.length > 2500) {
     errors.description = "Mô tả không được vượt quá 2500 ký tự.";
   }
 
-  if (!values.requirements?.trim()) {
+  if (!requirements) {
     errors.requirements = "Yêu cầu công việc là bắt buộc để phân tích.";
-  } else if (values.requirements.trim().length < 10) {
+  } else if (requirements.length < 10) {
     errors.requirements = "Yêu cầu phải ít nhất 10 ký tự (để có phân tích chính xác).";
-  } else if (values.requirements.length > 1800) {
+  } else if (requirements.length > 1800) {
     errors.requirements = "Yêu cầu không được vượt quá 1800 ký tự.";
   }
 
   // Kiểm tra email nếu có
-  if (values.email?.trim()) {
-    if (!isValidEmail(values.email)) {
+  if (email) {
+    if (!isValidEmail(email)) {
       errors.email = "Email chưa đúng định dạng (vd: abc@domain.com).";
     }
   }
 
   // Kiểm tra phone nếu có
-  if (values.phone?.trim()) {
-    if (!/^[0-9+\s().-]{8,20}$/.test(values.phone)) {
+  if (phone) {
+    if (!/^[0-9+\s().-]{8,20}$/.test(phone)) {
       errors.phone = "Số điện thoại chưa đúng định dạng (8-20 ký tự).";
     }
   }
 
   // Kiểm tra candidates nếu có
-  if (values.candidates?.trim()) {
-    if (!/^\d+$/.test(values.candidates.trim())) {
+  if (candidates) {
+    if (!/^\d+$/.test(candidates)) {
       errors.candidates = "Số lượng ứng viên phải là số nguyên dương.";
     }
   }
 
   // Cảnh báo cho các trường tiềm năng cải thiện phân tích
-  if (!values.salary?.trim()) {
+  if (!salary) {
     warnings.push("💡 Thêm mức lương sẽ cải thiện độ chính xác phân tích.");
   }
-  if (!values.address?.trim()) {
+  if (!address) {
     warnings.push("💡 Thêm địa chỉ giúp xác định vị trí công việc tốt hơn.");
   }
-  if (!values.companySize?.trim()) {
+  if (!companySize) {
     warnings.push("💡 Quy mô công ty giúp đánh giá độ uy tín của công ty.");
   }
-  if (!values.experience?.trim()) {
+  if (!experience) {
     warnings.push("💡 Kinh nghiệm yêu cầu giúp lọc các công việc phù hợp.");
   }
 
@@ -2341,21 +2397,21 @@ function saveUserBlacklist(ownerKey, items) {
 function mapJobToAnalysisForm(job = {}) {
   const normalizedJob = normalizeJobRecord(job);
   return {
-    title: normalizedJob.title || "",
-    companyName: normalizedJob.companyName || "",
-    description: normalizedJob.description || "",
-    requirements: normalizedJob.requirements || "",
-    benefits: normalizedJob.benefits || "",
-    salary: normalizedJob.salary || "",
-    address: normalizedJob.address || normalizedJob.location || "",
-    email: normalizedJob.email || "",
-    phone: normalizedJob.phone || "",
-    companySize: normalizedJob.companySize || "",
-    experience: normalizedJob.experience || "",
-    careerLevel: normalizedJob.careerLevel || "",
-    jobType: normalizedJob.jobType || "",
-    submissionDeadline: normalizedJob.submissionDeadline || "",
-    candidates: normalizedJob.candidates || "",
+    title: asFormText(normalizedJob.title),
+    companyName: asFormText(normalizedJob.companyName),
+    description: asFormText(normalizedJob.description),
+    requirements: asFormText(normalizedJob.requirements),
+    benefits: asFormText(normalizedJob.benefits),
+    salary: asFormText(normalizedJob.salary),
+    address: asFormText(normalizedJob.address || normalizedJob.location),
+    email: asFormText(normalizedJob.email),
+    phone: asFormText(normalizedJob.phone),
+    companySize: asFormText(normalizedJob.companySize),
+    experience: asFormText(normalizedJob.experience),
+    careerLevel: asFormText(normalizedJob.careerLevel),
+    jobType: asFormText(normalizedJob.jobType),
+    submissionDeadline: asFormText(normalizedJob.submissionDeadline),
+    candidates: asFormText(normalizedJob.candidates),
   };
 }
 
@@ -2441,6 +2497,17 @@ function getRecordValue(record, keys = []) {
     }
   }
   return "";
+}
+
+function asFormText(value) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+  return typeof value === "string" ? value : String(value);
+}
+
+function asTrimmedText(value) {
+  return asFormText(value).trim();
 }
 
 function enrichAnalysisResult(analysis, job, systemBlacklist, userBlacklist) {
