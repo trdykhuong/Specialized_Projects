@@ -55,7 +55,7 @@ if __name__ == "__main__":
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
     DATA_DIR = os.path.join(BASE_DIR, 'data')
 
-    df = pd.read_csv(os.path.join(DATA_DIR, "JOB_DATA_FINAL.csv"))
+    df = pd.read_csv(os.path.join(DATA_DIR, "../data/JOB_DATA_FINAL.csv"))
     print(f"Đã load: {len(df)} mẫu, {len(df.columns)} cột")
 
     df_processed = preprocess_pipeline(df)
@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     df_final = df_processed[available]
 
-    out_path = os.path.join(DATA_DIR, "JOB_DATA_LABELLED.csv")
+    out_path = os.path.join(DATA_DIR, "../data/JOB_DATA_PREPROCESSED.csv")
     df_final.to_csv(out_path, index=False, encoding="utf-8-sig")
 
     print(f"Đã lưu: {out_path}")
