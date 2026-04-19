@@ -412,10 +412,10 @@ class RecruitmentTrustService:
             risk_score += 10
             signals.append("Sử dụng email cá nhân thay vì email doanh nghiệp.")
         if not job["email"]:
-            risk_score += 8
+            risk_score += 3
             signals.append("Thiếu email liên hệ.")
         if not job["phone"]:
-            risk_score += 5
+            risk_score += 2
             signals.append("Thiếu số điện thoại liên hệ.")
         if not job["companyName"]:
             risk_score += 15
