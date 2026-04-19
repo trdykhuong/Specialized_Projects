@@ -91,7 +91,7 @@ def main():
     
     # Kiểm tra output
     print("\nKiểm tra output:")
-    if not check_file_exists("../data/JOB_DATA_LABELLED.csv"):
+    if not check_file_exists("../data/JOB_DATA_PREPROCESSED.csv"):
         print("✗ Không tìm thấy output file!")
         return
     
@@ -170,7 +170,7 @@ def main():
     
     print("\nData files được tạo:")
     data_files = [
-        "../data/JOB_DATA_LABELLED.csv",
+        "../data/JOB_DATA_PREPROCESSED.csv",
         "../data/JOB_DATA_ENHANCED_FEATURES.csv",
         "../data/JOB_DATA_IMPROVED_LABELS.csv",
         "../data/JOB_DATA_HIGH_CONFIDENCE.csv"
