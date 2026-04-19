@@ -20,7 +20,7 @@ import pandas as pd
 from scipy.sparse import hstack
 
 BASE_DIR = Path(__file__).resolve().parents[2]   # project root
-DATA_PATH = BASE_DIR / "data" / "JOB_DATA_HIGH_CONFIDENCE_KHOA.csv"
+DATA_PATH = BASE_DIR / "data" / "JOB_DATA_FINAL.csv"
 MODELS_DIR = BASE_DIR / "models"
 BLACKLIST_PATH = Path(__file__).resolve().parent.parent / "blacklist.json"
 
@@ -71,11 +71,13 @@ class RecruitmentTrustService:
             return
         df = pd.read_csv(DATA_PATH, encoding="utf-8-sig")
         df = df.fillna("")
-        df["risk_level"]   = df.apply(self._risk_from_row, axis=1)
-        df["risk_score"]   = df.apply(self._risk_score_from_row, axis=1)
-        df["job_title"]    = df.apply(self._derive_title, axis=1)
-        df["company_name"] = df.get("Name Company", "")
-        df["location"]     = df.apply(self._derive_location, axis=1)
+        df["job_title"] = df.get("Job Title", "").astype(str).str.strip()
+        df["company_name"] = df.get("Name Company", "").astype(str).str.strip()
+        df["location"] = df.apply(self._derive_location, axis=1)
+        df["full_text"] = df.apply(self._build_full_text, axis=1)
+        job_ids = pd.to_numeric(df.get("JobID"), errors="coerce")
+        fallback_ids = pd.Series(df.index, index=df.index, dtype="int64")
+        df["dataset_job_id"] = job_ids.where(job_ids.notna(), fallback_ids).astype(int)
         self.dataset       = df
         self.dataset_ready = not df.empty
 
@@ -108,11 +110,6 @@ class RecruitmentTrustService:
                 },
             }
 
-        low = int((self.dataset["risk_level"] == "LOW").sum())
-        medium = int((self.dataset["risk_level"] == "MEDIUM").sum())
-        high = int((self.dataset["risk_level"] == "HIGH").sum())
-        confidence = round(float(self.dataset["confidence"].astype(float).mean()), 3)
-
         top_companies = (
             self.dataset["company_name"]
             .replace("", "Chưa rõ")
@@ -129,22 +126,15 @@ class RecruitmentTrustService:
         return {
             "summary": {
                 "totalJobs": int(len(self.dataset)),
-                "lowRiskJobs": low,
-                "mediumRiskJobs": medium,
-                "highRiskJobs": high,
-                "averageConfidence": confidence,
+                "lowRiskJobs": 0,
+                "mediumRiskJobs": 0,
+                "highRiskJobs": 0,
+                "averageConfidence": 0,
             },
             "charts": {
-                "riskDistribution": [
-                    {"label": "Thấp", "value": low},
-                    {"label": "Trung bình", "value": medium},
-                    {"label": "Cao", "value": high},
-                ],
+                "riskDistribution": [],
                 "topCompanies": [{"name": c, "value": int(n)} for c, n in top_companies],
-                "topReasons": [
-                    {"reason": r, "value": v}
-                    for r, v in sorted(top_reasons.items(), key=lambda x: x[1], reverse=True)[:5]
-                ],
+                "topReasons": [{"reason": r, "value": v} for r, v in sorted(top_reasons.items(), key=lambda x: x[1], reverse=True)[:5]],
             },
             "system": {
                 "modelReady": self.model_ready,
@@ -176,12 +166,9 @@ class RecruitmentTrustService:
             mask = (
                 df["job_title"].str.lower().str.contains(q, na=False)
                 | df["company_name"].str.lower().str.contains(q, na=False)
-                | df["FULL_TEXT"].str.lower().str.contains(q, na=False)
+                | df["full_text"].str.lower().str.contains(q, na=False)
             )
             df = df[mask]
-
-        if risk != "ALL":
-            df = df[df["risk_level"] == risk.upper()]
 
         total = int(len(df))
         total_pages = (total + page_size - 1) // page_size if total else 0
@@ -198,6 +185,20 @@ class RecruitmentTrustService:
             "hasNext": page < total_pages,
             "hasPrevious": page > 1 and total_pages > 0,
         }
+
+    def get_job(self, job_id):
+        if not self.dataset_ready:
+            return None
+        try:
+            normalized_id = int(job_id)
+        except (TypeError, ValueError):
+            return None
+
+        matched = self.dataset[self.dataset["dataset_job_id"] == normalized_id]
+        if matched.empty:
+            return None
+        row = matched.iloc[0]
+        return self._serialize_job(row)
 
     # ------------------------------------------------------------------ #
     # Analysis
@@ -228,25 +229,35 @@ class RecruitmentTrustService:
             risk_score  = min(100, risk_score + 20)
             trust_score = max(0, 100 - risk_score)
 
+        result = {
+            "trustScore":   trust_score,
+            "riskScore":    risk_score,
+            "riskLevel":    self._risk_label_from_score(risk_score),
+            "riskLabel":    self._risk_label_vi(risk_score),
+            "confidence":   confidence,
+            "decision":     (
+                "Tin cậy" if risk_score < 40
+                else "Cần kiểm tra" if risk_score < 70
+                else "Nguy cơ cao"
+            ),
+            "modelReady":   self.model_ready,
+            "modelMessage": (
+                "Đã dùng mô hình máy học." if model_result
+                else "Đang dùng heuristic vì chưa có mô hình phù hợp."
+            ),
+        }
+
         return {
             "job": job,
-            "result": {
-                "trustScore":   trust_score,
-                "riskScore":    risk_score,
-                "riskLevel":    self._risk_label_from_score(risk_score),
-                "riskLabel":    self._risk_label_vi(risk_score),
-                "confidence":   confidence,
-                "decision":     (
-                    "Tin cậy" if risk_score < 40
-                    else "Cần kiểm tra" if risk_score < 70
-                    else "Nguy cơ cao"
-                ),
-                "modelReady":   self.model_ready,
-                "modelMessage": (
-                    "Đã dùng mô hình máy học." if model_result
-                    else "Đang dùng heuristic vì chưa có mô hình phù hợp."
-                ),
-            },
+            "result": result,
+            "trustScore": result["trustScore"],
+            "riskScore": result["riskScore"],
+            "riskLevel": result["riskLevel"],
+            "riskLabel": result["riskLabel"],
+            "confidence": result["confidence"],
+            "decision": result["decision"],
+            "modelReady": result["modelReady"],
+            "modelMessage": result["modelMessage"],
             "signals":         heuristic["signals"],
             "blacklist":       blacklist,
             "personalization": recommendation,
@@ -303,10 +314,10 @@ class RecruitmentTrustService:
         items = []
 
         for _, row in self.dataset.head(500).iterrows():
-            text_tokens = self._tokenize(f"{row['job_title']} {row['FULL_TEXT']} {row['company_name']}")
+            text_tokens = self._tokenize(f"{row['job_title']} {row['full_text']} {row['company_name']}")
             overlap = len(target_keywords.intersection(text_tokens)) if target_keywords else 0
-            safe_bonus = 20 if row["risk_level"].lower() in preferred_levels else 0
-            score = overlap * 15 + safe_bonus + float(row.get("confidence", 0)) * 30
+            safe_bonus = 20 if preferred_levels else 0
+            score = overlap * 15 + safe_bonus
             items.append({
                 **self._serialize_job(row),
                 "personalizationScore": round(score, 2),
@@ -387,6 +398,12 @@ class RecruitmentTrustService:
         if len(job["description"].split()) < 60:
             risk_score += 15
             signals.append("Mô tả ngắn, thiếu chi tiết công việc.")
+        if not job["requirements"]:
+            risk_score += 10
+            signals.append("Thiếu yêu cầu công việc.")
+        if not job["companySize"]:
+            risk_score += 5
+            signals.append("Thiếu quy mô công ty.")
         if any(kw in job["description"].lower() for kw in
                ["dong phi", "viec nhe luong cao", "tuyen gap", "khong can kinh nghiem"]):
             risk_score += 20
@@ -394,12 +411,30 @@ class RecruitmentTrustService:
         if "gmail.com" in job["email"].lower() or "yahoo.com" in job["email"].lower():
             risk_score += 10
             signals.append("Sử dụng email cá nhân thay vì email doanh nghiệp.")
+        if not job["email"]:
+            risk_score += 8
+            signals.append("Thiếu email liên hệ.")
+        if not job["phone"]:
+            risk_score += 5
+            signals.append("Thiếu số điện thoại liên hệ.")
         if not job["companyName"]:
             risk_score += 15
             signals.append("Thiếu thông tin doanh nghiệp.")
         if not job["address"]:
             risk_score += 10
             signals.append("Không có địa chỉ doanh nghiệp rõ ràng.")
+        if not job["careerLevel"]:
+            risk_score += 5
+            signals.append("Thiếu cấp bậc công việc.")
+        if not job["jobType"]:
+            risk_score += 5
+            signals.append("Thiếu loại hình công việc.")
+        if not job["experience"]:
+            risk_score += 5
+            signals.append("Thiếu yêu cầu kinh nghiệm.")
+        if not job["salary"]:
+            risk_score += 5
+            signals.append("Thiếu thông tin lương.")
         if self._extract_average_salary(job["salary"]) > 50_000_000:
             risk_score += 15
             signals.append("Mức lương cao bất thường so với thị trường.")
@@ -454,49 +489,58 @@ class RecruitmentTrustService:
         }
 
     def _serialize_job(self, row):
-        trust_score = round(100 - float(row["risk_score"]), 2)
         return {
-            "id":              int(row.name),
-            "title":           row["job_title"],
-            "companyName":     row["company_name"],
-            "salary":          row.get("Salary", ""),
-            "location":        row["location"],
-            "confidence":      float(row.get("confidence", 0)),
-            "trustScore":      trust_score,
-            "riskScore":       float(row["risk_score"]),
-            "riskLevel":       row["risk_level"],
-            "riskLabel":       self._risk_label_vi(row["risk_level"]),
-            "reputationScore": float(row.get("reputation_score", 0) or 0),
-            "companyActive":   bool(row.get("company_active", 0)),
-            "ruleScore":       float(row.get("rule_score", 0) or 0),
-            "statusText": (
-                "Doanh nghiệp đang hoạt động"
-                if bool(row.get("company_active", 0))
-                else "Chưa xác minh trạng thái doanh nghiệp"
-            ),
+            "id":                 int(row.get("dataset_job_id", row.name)),
+            "jobId":              int(row.get("dataset_job_id", row.name)),
+            "urlJob":             str(row.get("URL Job", "") or "").strip(),
+            "title":              row["job_title"],
+            "jobTitle":           row["job_title"],
+            "companyName":        row["company_name"],
+            "nameCompany":        row["company_name"],
+            "companyOverview":    str(row.get("Company Overview", "") or "").strip(),
+            "companySize":        str(row.get("Company Size", "") or "").strip(),
+            "companyAddress":     str(row.get("Company Address", "") or "").strip(),
+            "description":        str(row.get("Job Description", "") or "").strip(),
+            "requirements":       str(row.get("Job Requirements", "") or "").strip(),
+            "benefits":           str(row.get("Benefits", "") or "").strip(),
+            "jobAddress":         str(row.get("Job Address", "") or "").strip(),
+            "location":           row["location"],
+            "address":            str(row.get("Job Address", "") or row["location"]).strip(),
+            "jobType":            str(row.get("Job Type", "") or "").strip(),
+            "gender":             str(row.get("Gender", "") or "").strip(),
+            "candidates":         int(row.get("Number Cadidate", 0) or 0),
+            "numberCadidate":     int(row.get("Number Cadidate", 0) or 0),
+            "careerLevel":        str(row.get("Career Level", "") or "").strip(),
+            "experience":         str(row.get("Years of Experience", "") or "").strip(),
+            "yearsOfExperience":  str(row.get("Years of Experience", "") or "").strip(),
+            "salary":             row.get("Salary", ""),
+            "submissionDeadline": str(row.get("Submission Deadline", "") or "").strip(),
+            "industry":           str(row.get("Industry", "") or "").strip(),
+            "email":              "",
+            "phone":              "",
         }
 
     # ------------------------------------------------------------------ #
     # Derive helpers
     # ------------------------------------------------------------------ #
 
-    def _derive_title(self, row):
-        words = str(row.get("FULL_TEXT", "")).strip().split()
-        return " ".join(words[:10]) if words else "Tin tuyển dụng"
-
     def _derive_location(self, row):
-        text   = str(row.get("FULL_TEXT", "")).lower()
-        cities = {
-            "ha noi": "Hà Nội",
-            "ho chi minh": "TP Hồ Chí Minh",
-            "da nang": "Đà Nẵng",
-            "can tho": "Cần Thơ",
-            "hai phong": "Hải Phòng",
-        }
-        for key, label in cities.items():
-            if key in text:
-                return label
-        return "Toàn quốc"
+        job_address = str(row.get("Job Address", "")).strip()
+        company_address = str(row.get("Company Address", "")).strip()
+        return job_address or company_address or "Toàn quốc"
+
+    def _build_full_text(self, row):
+        return " ".join(
+            [
+                str(row.get("Job Title", "")).strip(),
+                str(row.get("Name Company", "")).strip(),
+                str(row.get("Company Overview", "")).strip(),
+                str(row.get("Job Description", "")).strip(),
+                str(row.get("Job Requirements", "")).strip(),
+                str(row.get("Benefits", "")).strip(),
+                str(row.get("Industry", "")).strip(),
+            ]
+        ).strip()
 
     def _risk_from_row(self, row):
         return self._risk_label_from_score(self._risk_score_from_row(row))
