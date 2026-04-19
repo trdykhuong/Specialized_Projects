@@ -32,7 +32,7 @@ MODEL_DIR = os.path.join(BASE_DIR, 'models')
 NUMERIC_FEATURES = [
     # ── Text features ──────────────────────────────────────
     'text_length', 'char_length', 'avg_word_length',
-    'uppercase_ratio', 'exclamation_count', 'number_count',
+    'uppercase_ratio', 'exclamation_count', 'question_count', 'number_count',
     'vocab_diversity', 'scam_keyword_count', 'positive_keyword_count',
     'max_word_repetition',
 
@@ -48,6 +48,8 @@ NUMERIC_FEATURES = [
     'no_experience_required', 'experience_years',
     'num_candidates', 'mass_recruitment',
     'requirements_length', 'requirements_missing',
+    'is_management_level', 'is_entry_level',
+    'is_part_time', 'is_full_time', 'is_freelance',
 
     # ── Company lookup features (từ enrich_company_features) ─
     'company_name_is_direct',   # 1 nếu tên lấy từ cột, 0 nếu extract từ text
@@ -73,6 +75,38 @@ NUMERIC_FEATURES = [
     'dl_rep_max',
     'dl_rep_high_ratio',
 ]
+
+# Nhóm features cho Ablation Study — thứ tự là thứ tự tích lũy
+FEATURE_GROUPS = {
+    'Text': [
+        'text_length', 'char_length', 'avg_word_length', 'uppercase_ratio',
+        'exclamation_count', 'question_count', 'number_count', 'vocab_diversity',
+        'scam_keyword_count', 'positive_keyword_count', 'max_word_repetition',
+    ],
+    'Salary': [
+        'salary_missing', 'salary_negotiable', 'salary_avg',
+        'salary_range_width', 'salary_suspiciously_high', 'salary_too_low',
+    ],
+    'Company Basic': [
+        'company_size_missing', 'company_size_value', 'is_small_company',
+        'company_overview_length', 'company_overview_missing',
+    ],
+    'Requirements': [
+        'no_experience_required', 'experience_years', 'num_candidates', 'mass_recruitment',
+        'requirements_length', 'requirements_missing',
+        'is_management_level', 'is_entry_level', 'is_part_time', 'is_full_time', 'is_freelance',
+    ],
+    'Company Enrich': [
+        'company_name_is_direct', 'company_found', 'company_verified',
+        'company_active', 'company_closed', 'company_unknown',
+        'company_age_months', 'company_match_score', 'company_is_branch',
+    ],
+    'Reputation': [
+        'reputation_found', 'reputation_negative_hits', 'reputation_avg_risk',
+        'reputation_max_risk', 'reputation_score',
+        'dl_rep_score', 'dl_rep_avg', 'dl_rep_max', 'dl_rep_high_ratio',
+    ],
+}
 
 
 class EnsembleJobClassifier:
@@ -122,7 +156,7 @@ class EnsembleJobClassifier:
         print("Đang load dữ liệu...")
 
         # Ưu tiên dùng file đã có company features
-        for fname in ["../data/JOB_DATA_IMPROVED_LABELS_KHOA.csv", "../data/JOB_DATA_HIGH_CONFIDENCE_KHOA.csv"]:
+        for fname in ["../data/JOB_DATA_IMPROVED_LABELS.csv", "../data/JOB_DATA_HIGH_CONFIDENCE.csv"]:
             path = os.path.join(DATA_DIR, fname)
             if os.path.exists(path):
                 df = pd.read_csv(path, encoding="utf-8-sig")
@@ -130,7 +164,7 @@ class EnsembleJobClassifier:
                 break
         else:
             raise FileNotFoundError(
-                "Không tìm thấy JOB_DATA_IMPROVED_LABELS_KHOA.csv. "
+                "Không tìm thấy JOB_DATA_IMPROVED_LABELS.csv. "
                 "Hãy chạy labeling.py trước."
             )
 
@@ -203,20 +237,70 @@ class EnsembleJobClassifier:
             print(f"F1-Score : {f1:.4f}")
             print(f"AUC-ROC  : {auc:.4f}")
 
+        # Bảng tổng hợp so sánh tất cả models
+        print("\n" + "=" * 80)
+        print("BẢNG TỔNG HỢP SO SÁNH MODELS")
+        print("=" * 80)
+        print(f"{'Model':<22} {'Accuracy':>9} {'Precision':>10} {'Recall':>8} {'F1':>8} {'AUC':>8}")
+        print("-" * 72)
+        for name, r in sorted(results.items(), key=lambda x: x[1]['f1'], reverse=True):
+            print(f"{name:<22} {r['accuracy']:>9.4f} {r['precision']:>10.4f} "
+                  f"{r['recall']:>8.4f} {r['f1']:>8.4f} {r['auc']:>8.4f}")
+
         return results
 
     # ────────────────────────────────────────────────────────
     def create_voting_ensemble(self, results):
-        sorted_models = sorted(results.items(), key=lambda x: x[1]['f1'], reverse=True)
-        top_3 = sorted_models[:3]
-        print("\nTop 3 models cho Voting Ensemble:")
-        for name, r in top_3:
-            print(f"  {name}: F1={r['f1']:.4f}, AUC={r['auc']:.4f}")
+        """
+        Chọn models cho ensemble dựa trên F1 VÀ diversity (tương quan dự đoán).
+        Weights tỉ lệ với AUC của từng model được chọn.
+        """
+        names = list(results.keys())
+
+        # 1. Ma trận tương quan dự đoán — đo mức độ diverse giữa các models
+        print("\n" + "=" * 80)
+        print("DIVERSITY ANALYSIS — TƯƠNG QUAN DỰ ĐOÁN GIỮA CÁC MODELS")
+        print("(giá trị thấp = diverse = ensemble có ích hơn)")
+        print("=" * 80)
+        pred_matrix = np.column_stack([results[n]['y_proba'] for n in names])
+        corr_matrix = np.corrcoef(pred_matrix.T)
+        short = [n[:10] for n in names]
+        print(f"{'':22s}" + "".join(f"{s:>12s}" for s in short))
+        for i, name_i in enumerate(names):
+            row = f"{name_i[:22]:22s}" + "".join(f"{corr_matrix[i, j]:12.3f}" for j in range(len(names)))
+            print(row)
+
+        # 2. Greedy selection: F1 cao + tương quan thấp với models đã chọn
+        sorted_by_f1 = sorted(results.items(), key=lambda x: x[1]['f1'], reverse=True)
+        selected = [sorted_by_f1[0][0]]
+
+        for name, _ in sorted_by_f1[1:]:
+            if len(selected) >= 3:
+                break
+            idx_new = names.index(name)
+            avg_corr = np.mean([corr_matrix[idx_new, names.index(s)] for s in selected])
+            if avg_corr < 0.95:
+                selected.append(name)
+            else:
+                print(f"\n  [LOẠI] {name}: tương quan trung bình={avg_corr:.3f} "
+                      f"quá cao với models đã chọn → không thêm vào ensemble")
+
+        # 3. Weights tỉ lệ với AUC (có căn cứ, không cứng nhắc)
+        aucs   = np.array([results[n]['auc'] for n in selected])
+        w_norm = aucs / aucs.sum()
+        # Scale thành số nguyên (VotingClassifier dùng relative weights)
+        weights = [max(1, round(w * 10)) for w in w_norm]
+
+        print(f"\nModels được chọn cho Voting Ensemble:")
+        for name, w in zip(selected, weights):
+            r = results[name]
+            print(f"  {name}: F1={r['f1']:.4f}  AUC={r['auc']:.4f}  weight={w}")
+        print(f"Lý do weights: tỉ lệ thuận với AUC trên test set")
 
         self.voting_clf = VotingClassifier(
-            estimators=[(n, r['model']) for n, r in top_3],
+            estimators=[(n, results[n]['model']) for n in selected],
             voting='soft',
-            weights=[3, 2, 1]
+            weights=weights,
         )
         return self.voting_clf
 
@@ -323,30 +407,96 @@ class EnsembleJobClassifier:
                       f"rep: {row.get('reputation_score',0):.2f}")
 
     # ────────────────────────────────────────────────────────
+    def evaluate_baseline(self, df_test, y_test):
+        """Rule-based baseline: dùng rule_score sinh bởi labeling.py làm điểm so sánh."""
+        print("\n" + "=" * 80)
+        print("BASELINE: RULE-BASED ONLY")
+        print("=" * 80)
+        if 'rule_score' not in df_test.columns:
+            print("[SKIP] Không có cột rule_score — chạy labeling.py trước")
+            return
+        y_pred = (df_test['rule_score'] < 4).astype(int)
+        print(classification_report(y_test, y_pred, target_names=['FAKE', 'REAL']))
+        try:
+            auc = roc_auc_score(y_test, 1 - df_test['rule_score'].values / 10)
+            print(f"AUC-ROC (rule_score): {auc:.4f}")
+        except Exception:
+            pass
+
+    # ────────────────────────────────────────────────────────
+    def ablation_study(self, df_train, df_test, y_train, y_test):
+        """So sánh F1/AUC khi tích lũy từng nhóm features — dùng LogisticRegression cố định."""
+        print("\n" + "=" * 80)
+        print("ABLATION STUDY — INCREMENTAL FEATURE GROUPS (LogisticRegression)")
+        print("=" * 80)
+
+        from sklearn.linear_model import LogisticRegression as _LR
+
+        tfidf_tmp = TfidfVectorizer(
+            max_features=10000, ngram_range=(1, 3), min_df=3, max_df=0.8
+        )
+        X_tr_text = tfidf_tmp.fit_transform(df_train['FULL_TEXT'].fillna(""))
+        X_te_text = tfidf_tmp.transform(df_test['FULL_TEXT'].fillna(""))
+
+        model = _LR(max_iter=1000, class_weight='balanced', C=0.5, random_state=42)
+        model.fit(X_tr_text, y_train)
+        f1  = f1_score(y_test, model.predict(X_te_text), zero_division=0)
+        auc = roc_auc_score(y_test, model.predict_proba(X_te_text)[:, 1])
+        print(f"  {'TF-IDF only':30s}: F1={f1:.4f}  AUC={auc:.4f}")
+
+        cumulative_features = []
+        for group_name, group_features in FEATURE_GROUPS.items():
+            available = [f for f in group_features if f in df_train.columns]
+            if not available:
+                print(f"  {'+ ' + group_name:30s}: [SKIP — không có data]")
+                continue
+            cumulative_features.extend(available)
+
+            scaler_tmp = StandardScaler()
+            X_tr_num = scaler_tmp.fit_transform(df_train[cumulative_features].fillna(0))
+            X_te_num = scaler_tmp.transform(df_test[cumulative_features].fillna(0))
+
+            X_tr_comb = hstack([X_tr_text, X_tr_num])
+            X_te_comb = hstack([X_te_text, X_te_num])
+
+            model = _LR(max_iter=1000, class_weight='balanced', C=0.5, random_state=42)
+            model.fit(X_tr_comb, y_train)
+            f1  = f1_score(y_test, model.predict(X_te_comb), zero_division=0)
+            auc = roc_auc_score(y_test, model.predict_proba(X_te_comb)[:, 1])
+            print(f"  {'+ ' + group_name:30s}: F1={f1:.4f}  AUC={auc:.4f}  (+{len(available)} feats)")
+
+    # ────────────────────────────────────────────────────────
     def run_complete_pipeline(self):
         # 1. Load
         df = self.load_and_prepare_data()
         print(f"\nPhân bố labels:\n{df['Label'].value_counts()}")
         print(f"Tỷ lệ FAKE: {(1 - df['Label'].mean())*100:.2f}%")
 
-        # 2. Features
-        X = self.prepare_features(df, fit=True)
+        # 2. Split TRƯỚC — tránh data leakage từ TF-IDF / Scaler
         y = df['Label']
-        print(f"\nShape: X={X.shape}, y={y.shape}")
-
-        # 3. Split
-        X_train, X_test, y_train, y_test, idx_train, idx_test = train_test_split(
-            X, y, df.index, test_size=0.2, random_state=42, stratify=y
+        df_train, df_test, y_train, y_test, _, idx_test = train_test_split(
+            df, y, df.index, test_size=0.2, random_state=42, stratify=y
         )
-        print(f"Train: {X_train.shape[0]}, Test: {X_test.shape[0]}")
+        print(f"Train: {len(df_train)}, Test: {len(df_test)}")
 
-        # 4. Train
+        # 3. Features — fit chỉ trên train, transform test riêng biệt
+        X_train = self.prepare_features(df_train, fit=True)
+        X_test  = self.prepare_features(df_test,  fit=False)
+        print(f"\nShape: X_train={X_train.shape}, X_test={X_test.shape}")
+
+        # 4. Baseline so sánh
+        self.evaluate_baseline(df_test, y_test)
+
+        # 5. Train & đánh giá từng model
         results = self.train_and_evaluate_models(X_train, X_test, y_train, y_test)
 
-        # 5. Cross-validation
-        self.cross_validation_evaluation(X, y)
+        # 6. Cross-validation — chỉ trên train set, tránh test contamination
+        self.cross_validation_evaluation(X_train, y_train)
 
-        # 6. Ensemble
+        # 7. Ablation study
+        self.ablation_study(df_train, df_test, y_train, y_test)
+
+        # 8. Ensemble
         voting_clf = self.create_voting_ensemble(results)
         voting_clf.fit(X_train, y_train)
         y_pred_ens  = voting_clf.predict(X_test)
@@ -358,21 +508,21 @@ class EnsembleJobClassifier:
         print(f"F1-Score : {f1_score(y_test, y_pred_ens, zero_division=0):.4f}")
         print(f"AUC-ROC  : {roc_auc_score(y_test, y_proba_ens):.4f}")
 
-        # 7. Best model
+        # 9. Best model
         best_name = max(results.items(), key=lambda x: x[1]['f1'])[0]
         self.best_model      = results[best_name]['model']
         self.best_model_name = best_name
         print(f"\nBest Single Model: {best_name} | F1={results[best_name]['f1']:.4f}")
 
-        # 8. Plot
+        # 10. Plot
         self.plot_results(results, y_test)
 
-        # 9. Report
+        # 11. Report
         print(f"\n{'='*80}\nDETAILED REPORT — {best_name}\n{'='*80}")
         print(classification_report(y_test, results[best_name]['y_pred'],
                                     target_names=['FAKE', 'REAL']))
 
-        # 10. Examples
+        # 12. Examples
         self.show_prediction_examples(df, idx_test, results[best_name]['y_proba'], y_test)
 
         return results, voting_clf
@@ -405,7 +555,7 @@ if __name__ == "__main__":
     joblib.dump(classifier.used_features, os.path.join(MODEL_DIR, 'feature_names.pkl'))
 
     print("\n" + "=" * 80)
-    print("HOÀN THÀNH! Đã lưu: KHOA")
+    print("HOÀN THÀNH! Đã lưu:")
     for f in ['best_model.pkl', 'voting_ensemble.pkl',
               'tfidf_vectorizer.pkl', 'scaler.pkl', 'feature_names.pkl']:
         print(f"  models/{f}")

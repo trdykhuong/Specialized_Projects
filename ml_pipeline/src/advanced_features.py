@@ -167,13 +167,11 @@ class AdvancedFeatureExtractor:
         
         # 4. Career Level
         career_level = str(row.get('Career Level', '')).lower()
-        features['career_level_text'] = career_level
         features['is_management_level'] = 1 if any(kw in career_level for kw in ['quản lý', 'manager', 'lead', 'director', 'supervisor']) else 0
         features['is_entry_level'] = 1 if any(kw in career_level for kw in ['nhân viên', 'entry', 'junior', 'fresher']) else 0
-        
+
         # 5. Job Type
         job_type = str(row.get('Job Type', '')).lower()
-        features['job_type_text'] = job_type
         features['is_part_time'] = 1 if 'part' in job_type or 'bán thời gian' in job_type else 0
         features['is_full_time'] = 1 if 'full' in job_type or 'toàn thời gian' in job_type else 0
         features['is_freelance'] = 1 if 'freelance' in job_type or 'tự do' in job_type else 0
@@ -245,7 +243,7 @@ class AdvancedFeatureExtractor:
 # MAIN: Áp dụng feature extraction
 if __name__ == "__main__":
     # Load dữ liệu đã preprocess
-    df = pd.read_csv("../data/JOB_DATA_LABELLED.csv")
+    df = pd.read_csv("../../data/JOB_DATA_PREPROCESSED.csv")
     
     # Khởi tạo feature extractor
     extractor = AdvancedFeatureExtractor()
@@ -269,7 +267,7 @@ if __name__ == "__main__":
     
     # Lưu file
     df_enhanced.to_csv(
-        "../data/JOB_DATA_ENHANCED_FEATURES.csv",
+        "../../data/JOB_DATA_ENHANCED_FEATURES.csv", 
         index=False,
         encoding="utf-8-sig"
     )

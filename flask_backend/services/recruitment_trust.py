@@ -206,21 +206,25 @@ class RecruitmentTrustService:
 
     def analyze_job(self, payload):
         job          = self._normalize_input(payload)
-        heuristic    = self._heuristic_analysis(job)
         blacklist    = self._blacklist_matches(job)
         recommendation = self._personalization_score(job, payload.get("candidateProfile", {}))
         model_result = self._model_predict(job)
 
         if model_result:
+            # Model đã học các signals cơ bản — chỉ bổ sung signals model không biết
+            slim      = self._heuristic_analysis_slim(job)
+            heuristic = slim
             model_risk  = model_result["probability_fake"] * 100
-            risk_score  = round(model_risk * 0.65 + heuristic["riskScore"] * 0.35, 2)
+            risk_score  = round(model_risk * 0.80 + slim["riskScore"] * 0.20, 2)
             trust_score = round(100 - risk_score, 2)
             confidence  = round(
-                max(model_result["probability_real"], model_result["probability_fake"]) * 0.7
-                + heuristic["confidence"] * 0.3,
+                max(model_result["probability_real"], model_result["probability_fake"]) * 0.85
+                + slim["confidence"] * 0.15,
                 3,
             )
         else:
+            # Không có model — dùng full heuristic để gánh toàn bộ
+            heuristic   = self._heuristic_analysis(job)
             risk_score  = heuristic["riskScore"]
             trust_score = 100 - risk_score
             confidence  = heuristic["confidence"]
@@ -438,6 +442,31 @@ class RecruitmentTrustService:
         if self._extract_average_salary(job["salary"]) > 50_000_000:
             risk_score += 15
             signals.append("Mức lương cao bất thường so với thị trường.")
+
+        risk_score = min(100, risk_score)
+        confidence = round(0.55 + abs(50 - risk_score) / 100, 3)
+        return {"riskScore": risk_score, "confidence": min(0.95, confidence), "signals": signals}
+
+    def _heuristic_analysis_slim(self, job):
+        """Chỉ kiểm tra signals mà model không có trong training data."""
+        signals    = []
+        risk_score = 10
+
+        if not job["companyName"]:
+            risk_score += 20
+            signals.append("Thiếu thông tin doanh nghiệp.")
+        if not job["address"]:
+            risk_score += 12
+            signals.append("Không có địa chỉ doanh nghiệp rõ ràng.")
+        if "gmail.com" in job["email"].lower() or "yahoo.com" in job["email"].lower():
+            risk_score += 15
+            signals.append("Sử dụng email cá nhân thay vì email doanh nghiệp.")
+        if not job["email"]:
+            risk_score += 5
+            signals.append("Thiếu email liên hệ.")
+        if not job["phone"]:
+            risk_score += 3
+            signals.append("Thiếu số điện thoại liên hệ.")
 
         risk_score = min(100, risk_score)
         confidence = round(0.55 + abs(50 - risk_score) / 100, 3)
