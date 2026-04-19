@@ -36,6 +36,7 @@ class RecruitmentTrustService:
         self.dataset = pd.DataFrame()
         self.extractor = AdvancedFeatureExtractor()
         self.model = None
+        self.voting_ensemble = None
         self.tfidf = None
         self.scaler = None
         self.feature_names = []
@@ -58,10 +59,14 @@ class RecruitmentTrustService:
 
     def _load_models(self):
         try:
-            self.model        = joblib.load(MODELS_DIR / "best_model.pkl")
-            self.tfidf        = joblib.load(MODELS_DIR / "tfidf_vectorizer.pkl")
-            self.scaler       = joblib.load(MODELS_DIR / "scaler.pkl")
+            self.tfidf         = joblib.load(MODELS_DIR / "tfidf_vectorizer.pkl")
+            self.scaler        = joblib.load(MODELS_DIR / "scaler.pkl")
             self.feature_names = joblib.load(MODELS_DIR / "feature_names.pkl")
+            # Ưu tiên voting ensemble, fallback về best_model
+            ensemble_path = MODELS_DIR / "voting_ensemble.pkl"
+            if ensemble_path.exists():
+                self.voting_ensemble = joblib.load(ensemble_path)
+            self.model        = joblib.load(MODELS_DIR / "best_model.pkl")
             self.model_ready  = True
         except Exception:
             self.model_ready = False
@@ -382,11 +387,13 @@ class RecruitmentTrustService:
                 if name not in frame.columns:
                     frame[name] = 0
 
-            x_text      = self.tfidf.transform([full_text])
-            x_num       = frame[self.feature_names].fillna(0)
+            x_text       = self.tfidf.transform([full_text])
+            x_num        = frame[self.feature_names].fillna(0)
             x_num_scaled = self.scaler.transform(x_num)
-            matrix      = hstack([x_text, x_num_scaled])
-            probs       = self.model.predict_proba(matrix)[0]
+            matrix       = hstack([x_text, x_num_scaled])
+            # Dùng voting ensemble nếu có, fallback về best_model
+            predictor = self.voting_ensemble if self.voting_ensemble is not None else self.model
+            probs      = predictor.predict_proba(matrix)[0]
             return {"probability_fake": float(probs[0]), "probability_real": float(probs[1])}
         except Exception:
             return None
