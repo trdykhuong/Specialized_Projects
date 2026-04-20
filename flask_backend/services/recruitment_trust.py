@@ -28,6 +28,11 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 from ml_pipeline.src.advanced_features import AdvancedFeatureExtractor
+try:
+    from backend.core.company_lookup import process_company_features, analyze_company_reputation
+except Exception:
+    process_company_features = None
+    analyze_company_reputation = None
 
 
 class RecruitmentTrustService:
@@ -373,7 +378,6 @@ class RecruitmentTrustService:
                 "FULL_TEXT":           full_text,
                 "Company Overview":    job["companyName"],
                 "Salary":              job["salary"],
-                "Company Size":        job["companySize"],
                 "Years of Experience": job["experience"],
                 "Number Cadidate":     job["candidates"],
                 "Job Requirements":    job["requirements"],
@@ -381,6 +385,7 @@ class RecruitmentTrustService:
                 "Career Level":        job["careerLevel"],
                 "Job Type":            job["jobType"],
             }
+            row.update(self._company_lookup_features(job["companyName"], full_text))
             features = self.extractor.extract_all_features(row)
             frame    = pd.DataFrame([{**row, **features}])
             for name in self.feature_names:
@@ -412,9 +417,6 @@ class RecruitmentTrustService:
         if not job["requirements"]:
             risk_score += 10
             signals.append("Thiếu yêu cầu công việc.")
-        if not job["companySize"]:
-            risk_score += 5
-            signals.append("Thiếu quy mô công ty.")
         if any(kw in job["description"].lower() for kw in
                ["dong phi", "viec nhe luong cao", "tuyen gap", "khong can kinh nghiem"]):
             risk_score += 20
@@ -434,9 +436,6 @@ class RecruitmentTrustService:
         if not job["address"]:
             risk_score += 10
             signals.append("Không có địa chỉ doanh nghiệp rõ ràng.")
-        if not job["careerLevel"]:
-            risk_score += 5
-            signals.append("Thiếu cấp bậc công việc.")
         if not job["jobType"]:
             risk_score += 5
             signals.append("Thiếu loại hình công việc.")
@@ -517,7 +516,6 @@ class RecruitmentTrustService:
             "address":     str(payload.get("address",     "")).strip(),
             "email":       str(payload.get("email",       "")).strip(),
             "phone":       str(payload.get("phone",       "")).strip(),
-            "companySize": str(payload.get("companySize", "")).strip(),
             "experience":  str(payload.get("experience",  "")).strip(),
             "candidates":  int(payload.get("candidates",  0) or 0),
             "careerLevel": str(payload.get("careerLevel", "")).strip(),
@@ -610,6 +608,43 @@ class RecruitmentTrustService:
     def _tokenize(self, text):
         return {t for t in re.findall(r"\w+", text.lower()) if len(t) > 2}
 
+    def _default_company_lookup_features(self):
+        return {
+            "company_name_is_direct": 1,
+            "company_found": 0,
+            "company_verified": 0,
+            "company_active": 0,
+            "company_closed": 0,
+            "company_unknown": 1,
+            "company_age_months": 0,
+            "company_match_score": 0,
+            "company_is_branch": 0,
+            "reputation_found": 0,
+            "reputation_negative_hits": 0,
+            "reputation_avg_risk": 0,
+            "reputation_max_risk": 0,
+            "reputation_score": 0,
+            "company_name_source": "Khong co",
+        }
+
+    def _company_lookup_features(self, company_name, full_text=""):
+        defaults = self._default_company_lookup_features()
+        normalized_name = str(company_name or "").strip()
+        if not normalized_name:
+            defaults["company_name_is_direct"] = 0
+            return defaults
+        if process_company_features is None or analyze_company_reputation is None:
+            return defaults
+        try:
+            company_features = process_company_features(company_name=normalized_name, text=full_text) or {}
+            reputation_features = analyze_company_reputation(company_name=normalized_name, text=full_text) or {}
+            merged = {**defaults, **company_features, **reputation_features}
+            if not merged.get("company_found"):
+                merged["company_name_source"] = merged.get("company_name_source") or "Khong co"
+            return merged
+        except Exception:
+            return defaults
+
     def _personalization_score(self, job, profile):
         profile    = profile or {}
         keywords   = self._tokenize(" ".join(profile.get("keywords", [])))
@@ -655,7 +690,7 @@ class RecruitmentTrustService:
         lines = [l.strip(" -\t") for l in block.splitlines() if l.strip()]
         job   = {k: "" for k in [
             "title","companyName","description","requirements","benefits",
-            "salary","address","email","phone","companySize","experience",
+            "salary","address","email","phone","experience",
             "careerLevel","jobType",
         ]}
         job["candidates"] = 0

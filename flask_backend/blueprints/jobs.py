@@ -13,6 +13,10 @@ def _predictor():
     return current_app.config["PREDICTOR"]
 
 
+def _trainer():
+    return current_app.config["TRAINING_PIPELINE"]
+
+
 # ------------------------------------------------------------------ #
 # Danh sách jobs (public)
 # ------------------------------------------------------------------ #
@@ -68,7 +72,6 @@ def create_job():
         "title": title,
         "companyName": company_name,
         "companyOverview": str(payload.get("companyOverview", "")).strip(),
-        "companySize": str(payload.get("companySize", "")).strip(),
         "companyAddress": str(payload.get("companyAddress", "")).strip(),
         "description": description,
         "requirements": str(payload.get("requirements", "")).strip(),
@@ -112,7 +115,15 @@ def analyze_job():
     except Exception:
         pass
 
-    return jsonify(_predictor().analyze_job(payload))
+    training = _trainer().ensure_training_started(triggered_by="analyze")
+    result = _predictor().analyze_job(payload)
+    result["training"] = training
+    return jsonify(result)
+
+
+@jobs_bp.get("/training-status")
+def training_status():
+    return jsonify(_trainer().get_status())
 
 
 # ------------------------------------------------------------------ #

@@ -2,6 +2,13 @@ import pandas as pd
 import re
 from collections import Counter
 import numpy as np
+import sys
+import os
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 class AdvancedFeatureExtractor:
     """
@@ -242,8 +249,12 @@ class AdvancedFeatureExtractor:
 
 # MAIN: Áp dụng feature extraction
 if __name__ == "__main__":
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+    input_path = os.path.join(BASE_DIR, "data", "JOB_DATA_PREPROCESSED.csv")
+    output_path = os.path.join(BASE_DIR, "data", "JOB_DATA_ENHANCED_FEATURES.csv")
+
     # Load dữ liệu đã preprocess
-    df = pd.read_csv("../../data/JOB_DATA_PREPROCESSED.csv")
+    df = pd.read_csv(input_path)
     
     # Khởi tạo feature extractor
     extractor = AdvancedFeatureExtractor()
@@ -266,11 +277,7 @@ if __name__ == "__main__":
     df_enhanced = pd.concat([df, features_df], axis=1)
     
     # Lưu file
-    df_enhanced.to_csv(
-        "../../data/JOB_DATA_ENHANCED_FEATURES.csv", 
-        index=False,
-        encoding="utf-8-sig"
-    )
+    df_enhanced.to_csv(output_path, index=False, encoding="utf-8-sig")
     
     print(f"\nĐã lưu file với {len(features_df.columns)} features mới!")
     print("\nDanh sách features:")

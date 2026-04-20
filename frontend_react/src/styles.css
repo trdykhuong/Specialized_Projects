@@ -98,6 +98,19 @@ textarea {
   padding: 14px 16px;
   background: rgba(255, 255, 255, 0.94);
   color: var(--text);
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: rgba(214, 107, 45, 0.58);
+  box-shadow: 0 0 0 4px rgba(214, 107, 45, 0.14);
+  background: #fffdf9;
 }
 
 textarea {
@@ -1153,6 +1166,23 @@ label span {
   display: block;
   margin-bottom: 6px;
   color: #1f5a8f;
+}
+
+.optional-fields {
+  border: 1px dashed rgba(57, 69, 73, 0.22);
+  border-radius: 20px;
+  padding: 14px 16px 18px;
+  background: rgba(255, 252, 247, 0.56);
+}
+
+.optional-fields summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.optional-fields-note {
+  margin: 12px 0 16px;
 }
 
 .auth-embed {

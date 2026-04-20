@@ -110,6 +110,9 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  getTrainingStatus() {
+    return request("/jobs/training-status");
+  },
   batchAnalyze(payload) {
     return request("/jobs/batch-analyze", {
       method: "POST",

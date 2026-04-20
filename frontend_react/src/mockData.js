@@ -10,7 +10,6 @@ export const sampleJob = {
   address: "Quận 1, TP Hồ Chí Minh",
   email: "hr@vieclamso.vn",
   phone: "0909123456",
-  companySize: "100-300",
   experience: "2 năm",
   candidates: 3,
   careerLevel: "Nhân viên",
