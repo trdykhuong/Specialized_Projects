@@ -323,6 +323,7 @@ export function AnalysisWorkspace({
   batchText,
   setBatchText,
   batchAnalysis,
+  buildAnalysisSummary,
   onAnalyzeBatch,
   jobs,
   total,
@@ -527,9 +528,21 @@ export function AnalysisWorkspace({
               <h3>Dán nhiều tin tuyển dụng</h3>
               <p className="muted">Mỗi tin cách nhau bằng một dòng trống. Backend sẽ tự parse rồi phân tích hàng loạt.</p>
             </div>
+            <div className="result-box batch-input-note">
+              <strong>Lưu ý nhập liệu</strong>
+              <p>Mỗi tin tuyển dụng cần cách nhau bằng một dòng trống để hệ thống tách đúng từng tin.</p>
+              <p>Hãy nhập hoặc dán theo dạng: tin 1, xuống 2 dòng, rồi đến tin 2.</p>
+            </div>
             {batchAnalyzeError && <div className="error-banner">{batchAnalyzeError}</div>}
             {batchAnalyzeMessage && <div className={batchAnalyzePending ? "status-banner pending" : "status-banner success"}>{batchAnalyzeMessage}</div>}
-            <textarea rows="20" value={batchText} onChange={(event) => setBatchText(event.target.value.slice(0, 12000))} maxLength={12000} />
+            <textarea
+              className="batch-input-textarea"
+              rows="20"
+              value={batchText}
+              onChange={(event) => setBatchText(event.target.value.slice(0, 12000))}
+              maxLength={12000}
+              placeholder={"Tin 1...\n\nTin 2...\n\nTin 3..."}
+            />
             <button className="primary-btn" type="button" onClick={onAnalyzeBatch} disabled={batchAnalyzePending}>
               {batchAnalyzePending ? "Đang phân tích..." : "Phân tích nhiều tin"}
             </button>
@@ -554,9 +567,40 @@ export function AnalysisWorkspace({
                 <div className="batch-result-list">
                   {(batchAnalysis.items || []).map((item, index) => (
                     <article key={`${item.job?.title || "job"}-${index}`} className="batch-result-card">
-                      <h4>{item.job?.title || "Untitled job"}</h4>
-                      <p>{item.job?.companyName || "Unknown company"}</p>
-                      <p className="muted">{item.job?.address || "Chưa có địa chỉ"} • {item.job?.salary || "Không có "}</p>
+                      {(() => {
+                        const summary = buildAnalysisSummary ? buildAnalysisSummary(item) : null;
+                        return (
+                          <>
+                            <h4>{item.job?.title || "Untitled job"}</h4>
+                            <p>{item.job?.companyName || "Unknown company"}</p>
+                            <p className="muted">{item.job?.address || "Chưa có địa chỉ"} • {item.job?.salary || "Không có "}</p>
+                            {summary && (
+                              <div className="metric-list">
+                                <div className="metric-row">
+                                  <span>Risk score</span>
+                                  <strong>{summary.riskScore}</strong>
+                                </div>
+                                <div className="metric-row">
+                                  <span>Trust score</span>
+                                  <strong>{summary.trustScore}</strong>
+                                </div>
+                                <div className="metric-row">
+                                  <span>Mức độ</span>
+                                  <strong>{summary.riskLevel}</strong>
+                                </div>
+                                <div className="metric-row">
+                                  <span>Kết luận</span>
+                                  <strong>{summary.decision}</strong>
+                                </div>
+                                <div className="metric-row">
+                                  <span>Cảnh báo</span>
+                                  <strong>{item.signals?.length || 0}</strong>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                       <div className="card-actions">
                         <button className="secondary-btn" type="button" onClick={() => onOpenJob(item.job, item)}>Chi tiết</button>
                         <button className="ghost-btn" type="button" onClick={() => onSaveJob(item.job)}>Save</button>

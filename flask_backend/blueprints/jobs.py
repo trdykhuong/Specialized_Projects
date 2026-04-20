@@ -133,7 +133,10 @@ def training_status():
 @jobs_bp.post("/batch-analyze")
 def batch_analyze():
     payload = request.get_json(silent=True) or {}
-    return jsonify(_predictor().batch_analyze(payload))
+    training = _trainer().ensure_training_started(triggered_by="batch-analyze")
+    result = _predictor().batch_analyze(payload)
+    result["training"] = training
+    return jsonify(result)
 
 
 # ------------------------------------------------------------------ #

@@ -77,6 +77,37 @@ const menuSections = [
   },
 ];
 
+const PAGE_META = {
+  analysis: {
+    title: "Analysis Workspace",
+    description: "Phân tích từng tin hoặc nhiều tin tuyển dụng từ cùng một màn hình.",
+  },
+  saved: {
+    title: "Saved Jobs",
+    description: "Theo dõi các tin bạn đã lưu để ứng tuyển sau.",
+  },
+  applications: {
+    title: "Applications",
+    description: "Quản lý pipeline ứng tuyển và các trạng thái hiện tại.",
+  },
+  statistics: {
+    title: "Statistics",
+    description: "Xem thống kê cá nhân và hiệu quả ứng tuyển của bạn.",
+  },
+  blacklist: {
+    title: "Blacklist",
+    description: "Kiểm tra blacklist hệ thống và quản lý danh sách riêng.",
+  },
+  profile: {
+    title: "Profile",
+    description: "Cập nhật thông tin cá nhân và preference phân tích.",
+  },
+  detail: {
+    title: "Job Detail",
+    description: "Xem chi tiết tin tuyển dụng và kết quả phân tích.",
+  },
+};
+
 export default function App() {
   const [authMode, setAuthMode] = useState("login");
   const [activePage, setActivePage] = useState("analysis");
@@ -123,15 +154,25 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [analysisRequest, setAnalysisRequest] = useState({ pending: false, context: "", error: "", message: "" });
   const [statusMessage, setStatusMessage] = useState("Kết nối Flask backend để xem dữ liệu cá nhân.");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [appToast, setAppToast] = useState(null);
   const [trainingStatus, setTrainingStatus] = useState(null);
   const isAuthRoute = routePath === "/login" || routePath === "/register";
+  const currentPageMeta = PAGE_META[activePage] || PAGE_META.analysis;
 
   useEffect(() => {
-    if (!successMessage) return;
-    const timer = window.setTimeout(() => setSuccessMessage(""), 3200);
+    if (!appToast?.message) return;
+    const timer = window.setTimeout(() => setAppToast(null), 3200);
     return () => window.clearTimeout(timer);
-  }, [successMessage]);
+  }, [appToast]);
+
+  function showToast(message, type = "success") {
+    if (!message) return;
+    setAppToast({
+      message,
+      type,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    });
+  }
 
   useEffect(() => {
     if (!trainingStatus?.running) return undefined;
@@ -294,7 +335,7 @@ export default function App() {
       setAccountMenuOpen(false);
       setActivePage("analysis");
       setStatusMessage("Đăng nhập thành công. JWT đã được lưu ở localStorage.");
-      setSuccessMessage("Đăng nhập thành công.");
+      showToast("Đăng nhập thành công.");
     } catch (error) {
       setLoginErrors({ general: error.message || "Đăng nhập thất bại." });
     } finally {
@@ -319,7 +360,7 @@ export default function App() {
       setRegisterForm({ email: "", password: "", confirmPassword: "", name: "" });
       openAuthRoute("login");
       setStatusMessage("Đăng ký thành công. Bạn có thể đăng nhập ngay.");
-      setSuccessMessage("Đăng ký thành công. Mời bạn đăng nhập.");
+      showToast("Đăng ký thành công. Mời bạn đăng nhập.");
     } catch (error) {
       setRegisterErrors({ general: error.message || "Đăng ký thất bại." });
     } finally {
@@ -336,6 +377,7 @@ export default function App() {
     setStats(null);
     setActivePage("analysis");
     setStatusMessage("Bạn đang ở chế độ guest.");
+    showToast("Đã đăng xuất.", "info");
     setAccountMenuOpen(false);
     closeAuthRoute();
   }
@@ -397,7 +439,9 @@ export default function App() {
         error: "",
         message: "Phân tích hoàn tất. Đã cập nhật điểm rủi ro và mức độ nguy hiểm.",
       });
-      setStatusMessage(buildAnalyzeStatusMessage(result.training, "Đã phân tích độ uy tín cho job đang chọn."));
+      const message = buildAnalyzeStatusMessage(result.training, "Đã phân tích độ uy tín cho job đang chọn.");
+      setStatusMessage(message);
+      showToast(message);
     } catch (error) {
       setAnalysisRequest({
         pending: false,
@@ -405,7 +449,9 @@ export default function App() {
         error: error.message || "Không phân tích được job. Vui lòng kiểm tra dữ liệu đầu vào rồi thử lại.",
         message: "",
       });
-      setStatusMessage(error.message || "Không phân tích được job.");
+      const message = error.message || "Không phân tích được job.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -422,6 +468,7 @@ export default function App() {
         message: "",
       });
       setStatusMessage("Hãy hoàn thành form phân tích trước khi gửi.");
+      showToast("Hãy hoàn thành form phân tích trước khi gửi.", "error");
       return;
     }
 
@@ -456,7 +503,9 @@ export default function App() {
         error: "",
         message: "Phân tích hoàn tất. Kết quả rủi ro đã sẵn sàng.",
       });
-      setStatusMessage(buildAnalyzeStatusMessage(result.training, "Đã phân tích 1 tin tuyển dụng."));
+      const message = buildAnalyzeStatusMessage(result.training, "Đã phân tích 1 tin tuyển dụng.");
+      setStatusMessage(message);
+      showToast(message);
     } catch (error) {
       setAnalysisRequest({
         pending: false,
@@ -464,7 +513,9 @@ export default function App() {
         error: error.message || "Phân tích thất bại. Vui lòng kiểm tra mô tả, email hoặc thông tin công ty.",
         message: "",
       });
-      setStatusMessage(error.message || "Không phân tích được tin tuyển dụng.");
+      const message = error.message || "Không phân tích được tin tuyển dụng.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -476,7 +527,12 @@ export default function App() {
       message: "Đang tách và phân tích danh sách tin tuyển dụng. Quá trình này có thể mất thêm chút thời gian...",
     });
     try {
-      const result = await api.batchAnalyze({ rawText: batchText });
+      const result = enrichBatchAnalysisResult(
+        await api.batchAnalyze({ rawText: batchText }),
+        blacklist,
+        userBlacklist
+      );
+      setTrainingStatus(result.training || null);
       setBatchAnalysis(result);
       setAnalysisMode("batch");
       setAnalysisRequest({
@@ -485,7 +541,9 @@ export default function App() {
         error: "",
         message: "Đã phân tích xong danh sách tin tuyển dụng.",
       });
-      setStatusMessage("Đã phân tích nhiều tin tuyển dụng.");
+      const message = buildAnalyzeStatusMessage(result.training, "Đã phân tích nhiều tin tuyển dụng.");
+      setStatusMessage(message);
+      showToast(message);
     } catch (error) {
       setAnalysisRequest({
         pending: false,
@@ -493,7 +551,9 @@ export default function App() {
         error: error.message || "Không phân tích được danh sách tin. Hãy thử tách mỗi tin bằng một dòng trống.",
         message: "",
       });
-      setStatusMessage(error.message || "Không phân tích được danh sách tin.");
+      const message = error.message || "Không phân tích được danh sách tin.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -504,6 +564,7 @@ export default function App() {
 
     if (!token) {
       setStatusMessage("Đã lưu preferences trong localStorage. Đăng nhập nếu bạn muốn đồng bộ lên backend.");
+      showToast("Đã lưu preferences trong localStorage.", "info");
       return;
     }
 
@@ -520,6 +581,7 @@ export default function App() {
       setUser(updated);
       setPreferences((current) => mergeProfilePreferences(current, updated));
       setStatusMessage("Đã lưu profile và preferences lên backend.");
+      showToast("Đã lưu profile và preferences lên backend.");
     } catch (error) {
       setProfileErrors({ general: error.message || "Không lưu được profile." });
     } finally {
@@ -532,8 +594,11 @@ export default function App() {
       const updated = await api.updateSavedJob(id, { note });
       setSavedJobs((current) => current.map((item) => (item.id === id ? updated : item)));
       setStatusMessage("Đã cập nhật note cho saved job.");
+      showToast("Đã cập nhật note cho saved job.");
     } catch (error) {
-      setStatusMessage(error.message || "Không cập nhật được note.");
+      const message = error.message || "Không cập nhật được note.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -541,8 +606,11 @@ export default function App() {
     try {
       await api.deleteSavedJob(id);
       await refreshUserData("Đã bỏ saved job.");
+      showToast("Đã bỏ saved job.");
     } catch (error) {
-      setStatusMessage(error.message || "Không xóa được saved job.");
+      const message = error.message || "Không xóa được saved job.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -551,8 +619,11 @@ export default function App() {
       await api.applySavedJob(item.id, { note: item.note || "" });
       await refreshUserData("Đã chuyển job sang Applications.");
       setActivePage("applications");
+      showToast("Đã chuyển job sang Applications.");
     } catch (error) {
-      setStatusMessage(error.message || "Không apply từ saved job được.");
+      const message = error.message || "Không apply từ saved job được.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -561,8 +632,11 @@ export default function App() {
       const updated = await api.updateApplication(id, patch);
       setApplications((current) => current.map((item) => (item.id === id ? updated : item)));
       setStatusMessage("Đã cập nhật application.");
+      showToast("Đã cập nhật application.");
     } catch (error) {
-      setStatusMessage(error.message || "Không cập nhật được application.");
+      const message = error.message || "Không cập nhật được application.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -577,8 +651,11 @@ export default function App() {
     try {
       await api.deleteApplication(id);
       await refreshUserData("Đã xóa application.");
+      showToast("Đã xóa application.");
     } catch (error) {
-      setStatusMessage(error.message || "Không xóa được application.");
+      const message = error.message || "Không xóa được application.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -590,8 +667,11 @@ export default function App() {
       });
       setBlacklistCheckResult(result);
       setStatusMessage("Đã kiểm tra blacklist hệ thống cho tên công việc và công ty.");
+      showToast("Đã kiểm tra blacklist hệ thống.");
     } catch (error) {
-      setStatusMessage(error.message || "Không kiểm tra được blacklist.");
+      const message = error.message || "Không kiểm tra được blacklist.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -600,6 +680,7 @@ export default function App() {
     const companyName = userBlacklistForm.companyName.trim();
     if (!title && !companyName) {
       setStatusMessage("Nhập job title hoặc tên công ty để lưu blacklist riêng.");
+      showToast("Nhập job title hoặc tên công ty để lưu blacklist riêng.", "error");
       return;
     }
 
@@ -615,22 +696,26 @@ export default function App() {
     );
     if (exists) {
       setStatusMessage("Mục blacklist riêng này đã tồn tại.");
+      showToast("Mục blacklist riêng này đã tồn tại.", "info");
       return;
     }
 
     setUserBlacklist((current) => [nextItem, ...current]);
     setUserBlacklistForm(DEFAULT_USER_BLACKLIST_FORM);
     setStatusMessage("Đã lưu vào blacklist riêng của bạn.");
+    showToast("Đã lưu vào blacklist riêng của bạn.");
   }
 
   function handleRemoveUserBlacklist(id) {
     setUserBlacklist((current) => current.filter((item) => item.id !== id));
     setStatusMessage("Đã xóa mục khỏi blacklist riêng.");
+    showToast("Đã xóa mục khỏi blacklist riêng.");
   }
 
   async function handleSaveJob(job) {
     if (!token) {
       setStatusMessage("Bạn đang ở guest mode. Hãy đăng nhập để lưu job.");
+      showToast("Hãy đăng nhập để lưu job.", "info");
       openAuthRoute("login");
       return;
     }
@@ -640,14 +725,18 @@ export default function App() {
       await api.createSavedJob(buildTrackingPayload(trackedJob));
       await refreshUserData("Đã lưu job vào Saved Jobs.");
       setActivePage("saved");
+      showToast("Đã lưu job vào Saved Jobs.");
     } catch (error) {
-      setStatusMessage(error.message || "Không lưu được job.");
+      const message = error.message || "Không lưu được job.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
   async function handleApplyJob(job) {
     if (!token) {
       setStatusMessage("Bạn đang ở guest mode. Hãy đăng nhập để theo dõi ứng tuyển.");
+      showToast("Hãy đăng nhập để theo dõi ứng tuyển.", "info");
       openAuthRoute("login");
       return;
     }
@@ -657,8 +746,11 @@ export default function App() {
       await api.createApplication(buildTrackingPayload(trackedJob));
       await refreshUserData("Đã thêm job vào Applications.");
       setActivePage("applications");
+      showToast("Đã thêm job vào Applications.");
     } catch (error) {
-      setStatusMessage(error.message || "Không tạo được application.");
+      const message = error.message || "Không tạo được application.";
+      setStatusMessage(message);
+      showToast(message, "error");
     }
   }
 
@@ -719,6 +811,7 @@ export default function App() {
     setAnalysisFormSource("existing");
     setSelectedJob(job);
     setStatusMessage("Đã đưa tin tuyển dụng vào form phân tích.");
+    showToast("Đã đưa tin tuyển dụng vào form phân tích.");
   }
 
   async function handleOpenApplicationJob(item) {
@@ -826,19 +919,18 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {successMessage && <div className="success-toast">{successMessage}</div>}
+      {appToast?.message && <div className={`app-toast ${appToast.type || "success"}`}>{appToast.message}</div>}
       <aside className="sidebar">
         <div className="sidebar-top">
-          
           <div className="brand-lockup">
             <div className="brand-mark">JT</div>
-         
+            <div className="brand-copy">
+              <strong>JobTrust</strong>
+            </div>
           </div>
         </div>
-
-
         {menuSections.map((section) => (
-          <div key={section.title}>
+          <section key={section.title} className="sidebar-section">
             <div className="menu-title">{section.title}</div>
             <nav className="menu">
               {section.items.map((item) => (
@@ -853,12 +945,17 @@ export default function App() {
                 </button>
               ))}
             </nav>
-          </div>
+          </section>
         ))}
       </aside>
 
       <main className="content">
         <section className="topbar">
+          <div className="page-intro">
+            <span className="page-kicker">Workspace</span>
+            <h1>{currentPageMeta.title}</h1>
+            <p>{currentPageMeta.description}</p>
+          </div>
           <div className="account-area">
             <button className="account-trigger" onClick={() => (token ? setAccountMenuOpen((current) => !current) : openAuthRoute("login"))}>
               <span className="avatar-badge">{buildAvatarLabel(token ? user?.name || preferences.name : "Guest")}</span>
@@ -896,6 +993,7 @@ export default function App() {
             batchText={batchText}
             setBatchText={setBatchText}
             batchAnalysis={batchAnalysis}
+            buildAnalysisSummary={buildAnalysisSummary}
             onAnalyzeBatch={handleAnalyzeBatch}
             jobs={jobs}
             total={jobTotal}
@@ -1295,6 +1393,16 @@ function enrichAnalysisResult(analysis, job, systemBlacklist, userBlacklist) {
         items: personalMatchItems,
       },
     },
+  };
+}
+
+function enrichBatchAnalysisResult(batchAnalysis, systemBlacklist, userBlacklist) {
+  if (!batchAnalysis) return batchAnalysis;
+  return {
+    ...batchAnalysis,
+    items: (batchAnalysis.items || []).map((item) =>
+      enrichAnalysisResult(item, item?.job || {}, systemBlacklist, userBlacklist)
+    ),
   };
 }
 
