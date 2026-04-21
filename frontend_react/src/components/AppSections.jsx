@@ -526,7 +526,6 @@ export function AnalysisWorkspace({
           <div className="panel panel-stack">
             <div>
               <h3>Dán nhiều tin tuyển dụng</h3>
-              <p className="muted">Mỗi tin cách nhau bằng một dòng trống. Backend sẽ tự parse rồi phân tích hàng loạt.</p>
             </div>
             <div className="result-box batch-input-note">
               <strong>Lưu ý nhập liệu</strong>
