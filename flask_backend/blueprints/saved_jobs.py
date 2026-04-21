@@ -5,7 +5,6 @@ Có thể "nâng cấp" một saved_job thành application (apply ngay).
 """
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy.exc import IntegrityError
 from extensions import db
 from models.application import Application, ApplicationStatus
 from models.saved_job import SavedJob
@@ -55,23 +54,36 @@ def save_job():
     if not job_data or not job_data.get("title"):
         return jsonify({"error": "Thiếu thông tin tin tuyển dụng."}), 400
 
+    job_id = data.get("jobId")
+    
+    # Check if job is already saved
+    existing = SavedJob.query.filter_by(
+        user_id=user_id,
+        job_id=job_id
+    ).first()
+    
+    if existing:
+        # Update existing saved job
+        existing.note = str(data.get("note", existing.note or "")).strip()
+        existing.risk_score = float(data.get("riskScore", existing.risk_score) or 0)
+        existing.trust_score = float(data.get("trustScore", existing.trust_score) or 0)
+        existing.risk_level = str(data.get("riskLevel", existing.risk_level or "")).strip()
+        existing.job_data = job_data
+        db.session.commit()
+        return jsonify(existing.to_dict()), 200
+    
+    # Create new saved job
     saved = SavedJob(
         user_id=user_id,
-        job_id=data.get("jobId"),
+        job_id=job_id,
         note=str(data.get("note", "")).strip(),
         risk_score=float(data.get("riskScore", 0) or 0),
         trust_score=float(data.get("trustScore", 0) or 0),
         risk_level=str(data.get("riskLevel", "")).strip(),
     )
     saved.job_data = job_data
-
-    try:
-        db.session.add(saved)
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"error": "Tin này đã được lưu trước đó."}), 409
-
+    db.session.add(saved)
+    db.session.commit()
     return jsonify(saved.to_dict()), 201
 
 

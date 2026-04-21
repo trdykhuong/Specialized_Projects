@@ -151,19 +151,37 @@ def _ensure_demo_customer_account() -> None:
         db.session.add(app)
 
     for index, row in enumerate(rows[DEMO_APPLICATION_COUNT:DEMO_TOTAL_ITEMS]):
+        job_id = _safe_int(row.get("JobID"))
         saved_at = now - timedelta(days=index + 1)
         risk_score = 22 + index * 11
-        saved = SavedJob(
+        
+        # Check if already exists to avoid UNIQUE constraint violation
+        existing = SavedJob.query.filter_by(
             user_id=user.id,
-            job_id=_safe_int(row.get("JobID")),
-            note=f"{DEMO_NOTE_PREFIX} Tin lưu sẵn {index + 1} để demo saved jobs.",
-            risk_score=risk_score,
-            trust_score=max(10, 100 - risk_score),
-            risk_level=risk_levels[(index + 1) % len(risk_levels)],
-            saved_at=saved_at,
-        )
-        saved.job_data = _build_job_snapshot(row)
-        db.session.add(saved)
+            job_id=job_id
+        ).first()
+        
+        if existing:
+            # Update existing record
+            existing.note = f"{DEMO_NOTE_PREFIX} Tin lưu sẵn {index + 1} để demo saved jobs."
+            existing.risk_score = risk_score
+            existing.trust_score = max(10, 100 - risk_score)
+            existing.risk_level = risk_levels[(index + 1) % len(risk_levels)]
+            existing.saved_at = saved_at
+            existing.job_data = _build_job_snapshot(row)
+        else:
+            # Create new record
+            saved = SavedJob(
+                user_id=user.id,
+                job_id=job_id,
+                note=f"{DEMO_NOTE_PREFIX} Tin lưu sẵn {index + 1} để demo saved jobs.",
+                risk_score=risk_score,
+                trust_score=max(10, 100 - risk_score),
+                risk_level=risk_levels[(index + 1) % len(risk_levels)],
+                saved_at=saved_at,
+            )
+            saved.job_data = _build_job_snapshot(row)
+            db.session.add(saved)
 
     db.session.commit()
 
