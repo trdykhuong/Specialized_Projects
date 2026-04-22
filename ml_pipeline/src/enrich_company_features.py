@@ -18,19 +18,11 @@ from threading import Lock
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 sys.path.insert(0, BASE_DIR)
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-try:
-    from backend.core.company_lookup import (
-        process_company_features,
-        analyze_company_reputation,
-    )
-except Exception:
-    process_company_features = None
-    analyze_company_reputation = None
+from backend.core.company_lookup import (
+    process_company_features,
+    analyze_company_reputation,
+)
 
 # =========================
 # ARGS
@@ -50,14 +42,9 @@ parser.add_argument("--resume",  action="store_true",
 args = parser.parse_args()
 
 if args.use_dl:
-    try:
-        from backend.core.company_loolup_DL import (
-            analyze_company_reputation as analyze_company_reputation_dl,
-        )
-    except Exception:
-        analyze_company_reputation_dl = None
-else:
-    analyze_company_reputation_dl = None
+    from backend.core.company_loolup_DL import (
+        analyze_company_reputation as analyze_company_reputation_dl,
+    )
 
 # =========================
 # PATHS
@@ -186,30 +173,11 @@ def process_one(key: str) -> tuple:
     # Jitter để các luồng không đồng loạt hit server
     time.sleep(random.uniform(0.1, args.delay))
 
-    if process_company_features is None or analyze_company_reputation is None:
-        merged = {
-            "company_name_is_direct": 1 if company_name else 0,
-            "company_found": 0,
-            "company_verified": 0,
-            "company_active": 0,
-            "company_closed": 0,
-            "company_unknown": 1,
-            "company_age_months": 0,
-            "company_match_score": 0,
-            "company_is_branch": 0,
-            "company_name_source": "Khong co",
-            "reputation_found": 0,
-            "reputation_negative_hits": 0,
-            "reputation_avg_risk": 0,
-            "reputation_max_risk": 0,
-            "reputation_score": 0,
-        }
-    else:
-        cf  = process_company_features(company_name=company_name, text=full_text)
-        rep = analyze_company_reputation(company_name=company_name, text=full_text)
-        merged = {**cf, **rep}
+    cf  = process_company_features(company_name=company_name, text=full_text)
+    rep = analyze_company_reputation(company_name=company_name, text=full_text)
+    merged = {**cf, **rep}
 
-    if args.use_dl and analyze_company_reputation_dl is not None:
+    if args.use_dl:
         rep_dl = analyze_company_reputation_dl(company_name=company_name, text=full_text)
         merged.update({k: v for k, v in rep_dl.items() if k.startswith("dl_")})
 

@@ -9,11 +9,6 @@ import sys
 import time
 from datetime import datetime
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-
 def print_header(text):
     """In header đẹp"""
     print("\n" + "="*80)
@@ -62,7 +57,7 @@ def main():
     # ========================================================================
     # BƯỚC 1: Kiểm tra prerequisites
     # ========================================================================
-    print_step(1, 7, "Kiểm tra prerequisites")
+    print_step(1, 6, "Kiểm tra prerequisites")
     
     print("Kiểm tra input files:")
     if not check_file_exists("../data/JOB_DATA_FINAL.csv"):
@@ -72,11 +67,10 @@ def main():
     
     print("\nKiểm tra scripts:")
     scripts = [
-        "src/data_processing.py",
+        "src/1_preprocessing.py",
         "src/advanced_features.py", 
-        "src/enrich_company_features.py",
-        "src/labeling.py",
-        "src/train_model.py"
+        "src/improved_labeling.py",
+        "src/ensemble_training.py"
     ]
     
     for script in scripts:
@@ -89,9 +83,9 @@ def main():
     # ========================================================================
     # BƯỚC 2: Preprocessing
     # ========================================================================
-    print_step(2, 7, "Preprocessing - Làm sạch và tách từ")
+    print_step(2, 6, "Preprocessing - Làm sạch và tách từ")
     
-    if not run_script("src/data_processing.py", "Preprocessing"):
+    if not run_script("src/1_preprocessing.py", "Preprocessing"):
         print("\n✗ Pipeline dừng do lỗi ở bước preprocessing")
         return
     
@@ -104,7 +98,7 @@ def main():
     # ========================================================================
     # BƯỚC 3: Advanced Feature Extraction
     # ========================================================================
-    print_step(3, 7, "Feature Engineering - Trích xuất 30+ features")
+    print_step(3, 6, "Feature Engineering - Trích xuất 30+ features")
     
     if not run_script("src/advanced_features.py", "Feature extraction"):
         print("\n✗ Pipeline dừng do lỗi ở bước feature extraction")
@@ -117,25 +111,11 @@ def main():
         return
     
     # ========================================================================
-    # BƯỚC 4: Company Enrichment
+    # BƯỚC 4: Improved Labeling
     # ========================================================================
-    print_step(4, 7, "Company Enrichment - Bổ sung feature theo tên công ty")
-
-    if not run_script("src/enrich_company_features.py", "Company enrichment"):
-        print("\n✗ Pipeline dừng do lỗi ở bước company enrichment")
-        return
-
-    print("\nKiểm tra output:")
-    if not check_file_exists("../data/JOB_DATA_WITH_COMPANY.csv"):
-        print("✗ Không tìm thấy output file!")
-        return
-
-    # ========================================================================
-    # BƯỚC 5: Improved Labeling
-    # ========================================================================
-    print_step(5, 7, "Labeling - Multi-method ensemble với confidence scoring")
+    print_step(4, 6, "Labeling - Multi-method ensemble với confidence scoring")
     
-    if not run_script("src/labeling.py", "Labeling"):
+    if not run_script("src/improved_labeling.py", "Labeling"):
         print("\n✗ Pipeline dừng do lỗi ở bước labeling")
         return
     
@@ -154,9 +134,9 @@ def main():
     # ========================================================================
     # BƯỚC 5: Train Ensemble Models
     # ========================================================================
-    print_step(6, 7, "Training - Ensemble models với cross-validation")
+    print_step(5, 6, "Training - Ensemble models với cross-validation")
     
-    if not run_script("src/train_model.py", "Model training"):
+    if not run_script("src/ensemble_training.py", "Model training"):
         print("\n✗ Pipeline dừng do lỗi ở bước training")
         return
     
@@ -177,7 +157,7 @@ def main():
     # ========================================================================
     # BƯỚC 6: Tổng kết
     # ========================================================================
-    print_step(7, 7, "Hoàn thành!")
+    print_step(6, 6, "Hoàn thành!")
     
     total_elapsed = time.time() - total_start
     
@@ -190,10 +170,8 @@ def main():
     
     print("\nData files được tạo:")
     data_files = [
-        "../data/JOB_DATA_LABELLED.csv",
         "../data/JOB_DATA_PREPROCESSED.csv",
         "../data/JOB_DATA_ENHANCED_FEATURES.csv",
-        "../data/JOB_DATA_WITH_COMPANY.csv",
         "../data/JOB_DATA_IMPROVED_LABELS.csv",
         "../data/JOB_DATA_HIGH_CONFIDENCE.csv"
     ]

@@ -1,5 +1,4 @@
 import os
-import sys
 import pandas as pd
 import numpy as np
 import re
@@ -20,11 +19,6 @@ from lightgbm import LGBMClassifier
 
 import warnings
 warnings.filterwarnings('ignore')
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 BASE_DIR  = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 DATA_DIR  = os.path.join(BASE_DIR, 'data')
@@ -136,7 +130,7 @@ class EnsembleJobClassifier:
             'RandomForest': RandomForestClassifier(
                 n_estimators=200, max_depth=15,
                 min_samples_split=10, min_samples_leaf=4,
-                class_weight='balanced', random_state=42, n_jobs=1
+                class_weight='balanced', random_state=42, n_jobs=-1
             ),
             'GradientBoosting': GradientBoostingClassifier(
                 n_estimators=150, max_depth=5, learning_rate=0.1, random_state=42
