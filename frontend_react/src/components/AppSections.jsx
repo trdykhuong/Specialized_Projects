@@ -474,6 +474,41 @@ export function AnalysisWorkspace({
               />
             </div>
 
+            <div className="detail-grid">
+              <Field
+                label="Địa chỉ"
+                value={analysisForm.address}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, address: value }))}
+                error={analysisFormValidation.errors.address}
+                maxLength={200}
+              />
+              <Field
+                label="Email liên hệ"
+                type="email"
+                value={analysisForm.email}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, email: value }))}
+                error={analysisFormValidation.errors.email}
+                maxLength={120}
+                inputMode="email"
+              />
+              <Field
+                label="Số điện thoại"
+                type="text"
+                value={analysisForm.phone}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, phone: value.replace(/\D/g, "").slice(0, 10) }))}
+                error={analysisFormValidation.errors.phone}
+                maxLength={10}
+                inputMode="tel"
+              />
+              <Field
+                label="Hạn nộp hồ sơ"
+                type="date"
+                value={analysisForm.submissionDeadline}
+                onChange={(value) => setAnalysisForm((current) => ({ ...current, submissionDeadline: value }))}
+                error={analysisFormValidation.errors.submissionDeadline}
+              />
+            </div>
+
             <div className="card-actions">
               <button className="primary-btn" type="button" onClick={onAnalyzeSingle} disabled={singleAnalyzePending}>
                 {singleAnalyzePending ? "Đang phân tích..." : "Phân tích tin này"}
@@ -877,6 +912,10 @@ export function ApplicationsPanel({ columns, groups, onDropStatus, onDelete, onO
 }
 
 function ApplicationCard({ item, onDelete, onOpenJob }) {
+  const trustScore = item.trustScore != null ? Number(item.trustScore) : null;
+  const riskLevel = item.riskLevel || "";
+  const riskAccent = riskLevel === "LOW" ? "green" : riskLevel === "MEDIUM" ? "amber" : riskLevel === "HIGH" ? "red" : "";
+
   return (
     <article
       className="application-card compact"
@@ -886,6 +925,14 @@ function ApplicationCard({ item, onDelete, onOpenJob }) {
     >
       <h4>{item.job?.title || "Untitled job"}</h4>
       <p className="muted">{item.job?.companyName || "Unknown company"}</p>
+      {trustScore != null && (
+        <div className="application-score-row">
+          <span className={`risk-badge risk-badge--${riskAccent}`}>
+            {riskLevel === "LOW" ? "An toàn" : riskLevel === "MEDIUM" ? "Cần kiểm tra" : riskLevel === "HIGH" ? "Nguy cơ cao" : "Chưa phân tích"}
+          </span>
+          <span className="score-chip">Trust {Math.round(trustScore)}%</span>
+        </div>
+      )}
       <div className="card-actions">
         <button className="secondary-btn" type="button" onClick={(event) => { event.stopPropagation(); onOpenJob(item); }}>
           Detail

@@ -48,6 +48,10 @@ const DEFAULT_ANALYSIS_FORM = {
   requirements: "",
   benefits: "",
   salary: "",
+  address: "",
+  email: "",
+  phone: "",
+  submissionDeadline: "",
   experience: "",
   careerLevel: "",
   jobType: "",
@@ -743,7 +747,12 @@ export default function App() {
 
     try {
       const trackedJob = await prepareJobForTracking(job);
-      await api.createApplication(buildTrackingPayload(trackedJob));
+      const analysisScores = jobAnalysis ? {
+        riskScore: jobAnalysis.riskScore ?? jobAnalysis.result?.riskScore ?? 0,
+        trustScore: jobAnalysis.trustScore ?? jobAnalysis.result?.trustScore ?? 0,
+        riskLevel: jobAnalysis.riskLevel ?? jobAnalysis.result?.riskLevel ?? "",
+      } : {};
+      await api.createApplication({ ...buildTrackingPayload(trackedJob), ...analysisScores });
       await refreshUserData("Đã thêm job vào Applications.");
       setActivePage("applications");
       showToast("Đã thêm job vào Applications.");
@@ -1095,8 +1104,12 @@ function validateAnalysisForm(values) {
   const candidates = asTrimmedText(values.candidates);
   const salary = asTrimmedText(values.salary);
   const experience = asTrimmedText(values.experience);
+  const email = asTrimmedText(values.email);
+  const phone = asTrimmedText(values.phone);
+  const address = asTrimmedText(values.address);
+  const submissionDeadline = asTrimmedText(values.submissionDeadline);
 
-  // Kiểm tra trường bắt buộc
+  // Bắt buộc
   if (!title) {
     errors.title = "Tiêu đề công việc là bắt buộc.";
   } else if (title.length < 3) {
@@ -1129,19 +1142,52 @@ function validateAnalysisForm(values) {
     errors.requirements = "Yêu cầu không được vượt quá 1800 ký tự.";
   }
 
-  // Kiểm tra candidates nếu có
+  // Email — chỉ validate khi có nhập
+  if (email && !isValidEmail(email)) {
+    errors.email = "Email không đúng định dạng (vd: hr@company.com).";
+  }
+
+  // Số điện thoại — chỉ validate khi có nhập
+  if (phone && !/^0\d{9}$/.test(phone)) {
+    errors.phone = "Số điện thoại phải đúng 10 chữ số và bắt đầu bằng 0.";
+  }
+
+  // Địa chỉ — giới hạn độ dài
+  if (address && address.length > 200) {
+    errors.address = "Địa chỉ không được vượt quá 200 ký tự.";
+  }
+
+  // Số lượng ứng viên
   if (candidates) {
     if (!/^\d+$/.test(candidates)) {
       errors.candidates = "Số lượng ứng viên phải là số nguyên dương.";
+    } else if (Number(candidates) > 10000) {
+      errors.candidates = "Số lượng ứng viên không hợp lệ (tối đa 10.000).";
     }
   }
 
-  // Cảnh báo cho các trường tiềm năng cải thiện phân tích
+  // Hạn nộp hồ sơ — kiểm tra định dạng ngày nếu có nhập
+  if (submissionDeadline) {
+    const parsed = new Date(submissionDeadline);
+    if (isNaN(parsed.getTime())) {
+      errors.submissionDeadline = "Hạn nộp hồ sơ không đúng định dạng ngày.";
+    } else if (parsed < new Date(new Date().setHours(0, 0, 0, 0))) {
+      errors.submissionDeadline = "Hạn nộp hồ sơ đã qua.";
+    }
+  }
+
+  // Cảnh báo cải thiện phân tích
   if (!salary) {
-    warnings.push("💡 Thêm mức lương sẽ cải thiện độ chính xác phân tích.");
+    warnings.push("Thêm mức lương sẽ cải thiện độ chính xác phân tích.");
   }
   if (!experience) {
-    warnings.push("💡 Kinh nghiệm yêu cầu giúp lọc các công việc phù hợp.");
+    warnings.push("Kinh nghiệm yêu cầu giúp lọc các công việc phù hợp.");
+  }
+  if (!email && !phone) {
+    warnings.push("Thêm email hoặc số điện thoại để phân tích thông tin liên hệ.");
+  }
+  if (!address) {
+    warnings.push("Thêm địa chỉ công ty để tăng độ chính xác phân tích.");
   }
 
   return { errors, warnings };
